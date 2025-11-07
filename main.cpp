@@ -2,6 +2,8 @@
 #include <vector>
 #include <map>
 #include <algorithm>
+#include <fstream>
+#include <iomanip>
 #include <cuda_runtime.h>
 #include "CPU/mesh_parser.h"
 #include "CPU/csr_builder.h"
@@ -218,6 +220,72 @@ int main(int argc, char* argv[]) {
     std::cout << "Non-zeros: " << nnz << std::endl;
     std::cout << "Value range: [" << minVal << ", " << maxVal << "]" << std::endl;
     std::cout << "Sum of all values: " << sum << std::endl;
+    
+    // ============================================
+    // Step 8: Save matrix to file
+    // ============================================
+    std::string matrixFile = "global_matrix.txt";
+    std::cout << "\nSaving matrix to " << matrixFile << "..." << std::endl;
+    
+    std::ofstream outFile(matrixFile);
+    if (!outFile.is_open()) {
+        std::cerr << "Warning: Could not open " << matrixFile << " for writing" << std::endl;
+    } else {
+        // Write header
+        outFile << "# Global Stiffness Matrix (CSR format)" << std::endl;
+        outFile << "# Matrix size: " << nDOF << " x " << nDOF << std::endl;
+        outFile << "# Number of non-zeros: " << nnz << std::endl;
+        outFile << "# Material properties: E = " << E << " MPa, nu = " << nu << std::endl;
+        outFile << "# Symmetric upper triangle: " << (symmetric_upper ? "yes" : "no") << std::endl;
+        outFile << "# Format: Row Column Value (0-based indices)" << std::endl;
+        outFile << "#" << std::endl;
+        
+        // Write matrix entries in coordinate format (row, col, value)
+        outFile << std::scientific << std::setprecision(15);
+        for (int i = 0; i < nDOF; ++i) {
+            for (int j = rowPtr[i]; j < rowPtr[i + 1]; ++j) {
+                int col = colIdx[j];
+                double val = values[j];
+                outFile << i << " " << col << " " << val << std::endl;
+            }
+        }
+        
+        outFile.close();
+        std::cout << "Matrix saved successfully!" << std::endl;
+        
+        // Also save CSR arrays for reference
+        std::string csrFile = "csr_arrays.txt";
+        std::ofstream csrOut(csrFile);
+        if (csrOut.is_open()) {
+            csrOut << "# CSR Arrays" << std::endl;
+            csrOut << "# Matrix size: " << nDOF << " x " << nDOF << std::endl;
+            csrOut << "# Non-zeros: " << nnz << std::endl;
+            csrOut << "#" << std::endl;
+            csrOut << "# RowPtr array (length " << (nDOF + 1) << "):" << std::endl;
+            for (size_t i = 0; i < rowPtr.size(); ++i) {
+                csrOut << rowPtr[i];
+                if (i < rowPtr.size() - 1) csrOut << " ";
+            }
+            csrOut << std::endl << std::endl;
+            
+            csrOut << "# ColIdx array (length " << nnz << "):" << std::endl;
+            for (int i = 0; i < nnz; ++i) {
+                csrOut << colIdx[i];
+                if (i < nnz - 1) csrOut << " ";
+            }
+            csrOut << std::endl << std::endl;
+            
+            csrOut << "# Values array (length " << nnz << "):" << std::endl;
+            csrOut << std::scientific << std::setprecision(15);
+            for (int i = 0; i < nnz; ++i) {
+                csrOut << values[i];
+                if (i < nnz - 1) csrOut << " ";
+            }
+            csrOut << std::endl;
+            csrOut.close();
+            std::cout << "CSR arrays also saved to " << csrFile << std::endl;
+        }
+    }
     
     // ============================================
     // Cleanup
