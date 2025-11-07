@@ -115,17 +115,38 @@ void parseMSHv4(std::ifstream &file, std::vector<Node> &nodes, std::vector<Eleme
                 size_t numElemsInBlock;
                 file >> entityDim >> entityTag >> elemType >> numElemsInBlock;
 
+                // Determine number of nodes per element based on element type
+                int nodesPerElem = 0;
+                if (elemType == 1) nodesPerElem = 2;      // Line
+                else if (elemType == 2) nodesPerElem = 3; // Triangle
+                else if (elemType == 4) nodesPerElem = 4; // Tet4
+                else if (elemType == 5) nodesPerElem = 8; // Hexahedron
+                // Add more types as needed
+                
+                if (nodesPerElem == 0) {
+                    std::cerr << "Warning: Unsupported element type " << elemType 
+                              << " in block " << b << ". Skipping " << numElemsInBlock 
+                              << " elements." << std::endl;
+                    // Skip this block by reading and discarding all element lines
+                    for (size_t i = 0; i < numElemsInBlock; ++i) {
+                        std::string elemLine;
+                        std::getline(file, elemLine);
+                    }
+                    continue;
+                }
+                
                 for (size_t i = 0; i < numElemsInBlock; ++i) {
                     Element e;
                     e.id = elemCounter++;
                     e.type = elemType;
 
-                    // read node connectivity for this element
+                    // In Gmsh v4, each element line starts with elementTag, then node IDs
+                    int elementTag;  // Read and discard the element tag
+                    file >> elementTag;
+                    
+                    // Read node connectivity for this element
                     int nodeId;
-                    while (e.node_ids.size() < (elemType == 1 ? 2 :
-                                                elemType == 2 ? 3 :
-                                                elemType == 4 ? 4 :
-                                                elemType == 5 ? 8 : 0)) {
+                    for (int n = 0; n < nodesPerElem; ++n) {
                         file >> nodeId;
                         e.node_ids.push_back(nodeId);
                     }

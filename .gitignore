@@ -1,0 +1,24 @@
+# Build artifacts (commented out - allowing binaries to be committed)
+# *.o
+# fem_assembly
+# *.so
+# *.a
+
+# General output files
+*.csv
+*.bin
+
+# Note: Compiled binaries (.o files, executables) and output files 
+# (global_matrix.txt, csr_arrays.txt) are intentionally tracked
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
