@@ -4,17 +4,7 @@
 #include <vector>
 #include <string>
 #include <limits>
-
-struct Node {
-    int id;
-    double x, y, z;
-};
-
-struct Element {
-    int id;
-    int type;
-    std::vector<int> node_ids;
-};
+#include "mesh_parser.h"
 
 // ---------- Gmsh v2 Parser ----------
 void parseMSHv2(std::ifstream &file, std::vector<Node> &nodes, std::vector<Element> &elements) {
@@ -49,6 +39,40 @@ void parseMSHv2(std::ifstream &file, std::vector<Node> &nodes, std::vector<Eleme
             elements.push_back(e);
         }
     }
+}
+
+// ---------- Public API: Parse mesh file ----------
+bool parseMeshFile(const std::string& filename, 
+                   std::vector<Node>& nodes, 
+                   std::vector<Element>& elements) {
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Cannot open " << filename << "\n";
+        return false;
+    }
+
+    // detect version
+    std::string line;
+    std::getline(file, line);
+    if (line != "$MeshFormat") {
+        std::cerr << "Not a valid Gmsh mesh file\n";
+        file.close();
+        return false;
+    }
+    std::getline(file, line);
+    bool isV4 = line.find("4.") != std::string::npos;
+    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // skip $EndMeshFormat
+
+    nodes.clear();
+    elements.clear();
+
+    if (isV4) {
+        parseMSHv4(file, nodes, elements);
+    } else {
+        parseMSHv2(file, nodes, elements);
+    }
+    file.close();
+    return true;
 }
 
 // ---------- Gmsh v4 Parser ----------
@@ -158,57 +182,5 @@ void saveBinary(const std::vector<Node> &nodes,
     elemBin.close();
 }
 
-// ---------- MAIN ----------
-int main() {
-    std::ifstream file("bracket_3d.msh");
-    if (!file.is_open()) {
-        std::cerr << "Cannot open bracket_3d.msh\n";
-        return 1;
-    }
-
-    // detect version
-    std::string line;
-    std::getline(file, line);
-    if (line != "$MeshFormat") {
-        std::cerr << "Not a valid Gmsh mesh file\n";
-        return 1;
-    }
-    std::getline(file, line);
-    bool isV4 = line.find("4.") != std::string::npos;
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n'); // skip $EndMeshFormat
-
-    std::vector<Node> nodes;
-    std::vector<Element> elements;
-
-    if (isV4) {
-        std::cout << "Detected Gmsh v4 format\n";
-        parseMSHv4(file, nodes, elements);
-    } else {
-        std::cout << "Detected Gmsh v2 format\n";
-        parseMSHv2(file, nodes, elements);
-    }
-    file.close();
-
-    std::cout << "Parsed " << nodes.size() << " nodes and "
-              << elements.size() << " elements.\n";
-
-    std::cout << "Saving to CSV and binary...\n";
-    saveCSV(nodes, elements);
-    saveBinary(nodes, elements);
-
-    std::cout << "Done! Files created:\n"
-              << "  - nodes.csv\n"
-              << "  - elements.csv\n"
-              << "  - nodes.bin\n"
-              << "  - elements.bin\n";
-
-    if (!elements.empty()) {
-        std::cout << "Example element (id " << elements[0].id << "): type "
-                  << elements[0].type << " → connectivity: ";
-        for (int nid : elements[0].node_ids)
-            std::cout << nid << " ";
-        std::cout << "\n";
-    }
-
-    return 0;
-}
+// Note: main() function removed - this file is now used as a library.
+// The main entry point is in main.cpp
