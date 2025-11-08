@@ -4,9 +4,11 @@
 #include <iostream>
 #include <vector>
 #include <tuple>
+#include <queue>
+#include <climits>
 
 std::vector<int> reverseCuthillMcKee(
-    int n, const vector<int>& row_ptr, const vector<int>& col_ind)
+    int n, const std::vector<int>& row_ptr, const std::vector<int>& col_ind)
 {
     std::vector<int> degree(n);
     for (int i = 0; i < n; ++i)
@@ -32,7 +34,7 @@ std::vector<int> reverseCuthillMcKee(
                     nbrs.push_back(u);
                 }
             }
-            sort(nbrs.begin(), nbrs.end(),
+            std::sort(nbrs.begin(), nbrs.end(),
                  [&](int a, int b) { return degree[a] < degree[b]; });
             for (int u : nbrs) q.push(u);
         }
@@ -48,7 +50,7 @@ std::vector<int> reverseCuthillMcKee(
         bfs_component(start);
     }
 
-    reverse(order.begin(), order.end());
+    std::reverse(order.begin(), order.end());
     return order;
 }
 
