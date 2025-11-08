@@ -3,9 +3,8 @@
 #include <device_launch_parameters.h>
 #include <cstdio>
 
-// ---------------------------------------------
+
 // Small helpers
-// ---------------------------------------------
 
 // Binary search col 'c' in CSR row r: rowPtr[r]..rowPtr[r+1]-1
 __device__ __forceinline__
@@ -32,11 +31,9 @@ int global_dof(int global_node, int d, int ndof_per_node)
     return global_node * ndof_per_node + d;
 }
 
-// ---------------------------------------------
 // Kernel: assemble element Ke into global CSR
 // Each thread handles ONE element.
 // Ke is (nen*ndof) x (nen*ndof)
-// ---------------------------------------------
 __global__
 void assembleCSR_atomic_kernel(
     const double* __restrict__ elemKe,   // [nElem * (nen*ndof)^2]
@@ -90,9 +87,6 @@ void assembleCSR_atomic_kernel(
                     int pos = csr_find_pos(rowPtr, colIdx, row, col);
                     if (pos >= 0) {
                         atomicAdd(&values[pos], val);
-                    } else {
-                        // Pattern mismatch (shouldn't happen if CSR built from adjacency+DOFs)
-                        // You may count/report errors if needed.
                     }
                 }
             }
@@ -100,9 +94,7 @@ void assembleCSR_atomic_kernel(
     }
 }
 
-// ---------------------------------------------
 // Host launcher
-// ---------------------------------------------
 void launch_assembleCSR_atomic(
     const double* d_elemKe,     // device
     const int*    d_elem_conn,  // device

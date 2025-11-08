@@ -8,14 +8,14 @@
 
 #include "CPU/mesh_parser.h"
 #include "CPU/csr_builder.h"
-#include "CPU/reorder.h"           // <-- Added
+#include "CPU/reorder.h"           
 #include "GPU/localSolve.h"
 #include "GPU/globalAsm.h"
-#include "GPU/gpu_solve_csr.h"     // <-- Added
+#include "GPU/gpu_solve_csr.h"     
 
-// ------------------------------------------------------------
+
 // CUDA Error Check
-// ------------------------------------------------------------
+
 #define CUDA_CHECK(call) \
     do { \
         cudaError_t err = call; \
@@ -26,9 +26,9 @@
         } \
     } while(0)
 
-// ------------------------------------------------------------
+
 // Main FEM GPU Pipeline
-// ------------------------------------------------------------
+
 int main(int argc, char* argv[]) {
     // Parse command line arguments
     std::string meshFile = "CPU/bracket_3d.msh";
@@ -43,9 +43,9 @@ int main(int argc, char* argv[]) {
     std::cout << "Mesh file: " << meshFile << std::endl;
     std::cout << "Material: E=" << E << " MPa, nu=" << nu << std::endl;
 
-    // ============================================
+
     // Step 1: Parse mesh
-    // ============================================
+
     std::vector<Node> nodes;
     std::vector<Element> elements;
     if (!parseMeshFile(meshFile, nodes, elements)) {
@@ -56,9 +56,9 @@ int main(int argc, char* argv[]) {
     std::cout << "\nParsed " << nodes.size() << " nodes and "
               << elements.size() << " elements" << std::endl;
 
-    // ============================================
+
     // Step 2: Filter Tet4 and remap IDs
-    // ============================================
+
     std::vector<Element> tet4Elements;
     for (const auto& elem : elements) {
         if (elem.type == 4 && elem.node_ids.size() == 4)
@@ -91,9 +91,9 @@ int main(int argc, char* argv[]) {
 
     std::cout << "Using " << nNodes << " nodes (0-based indexing)" << std::endl;
 
-    // ============================================
+
     // Step 3: Build CSR pattern
-    // ============================================
+
     std::vector<int> rowPtr, colIdx;
     int nDOF;
     int nnz = buildCSRPattern(tet4Elements, nodes,
@@ -102,9 +102,9 @@ int main(int argc, char* argv[]) {
 
     std::cout << "CSR: " << nDOF << " DOFs, " << nnz << " non-zeros" << std::endl;
 
-    // ============================================
+
     // Step 4: Allocate GPU memory
-    // ============================================
+
     std::cout << "\nAllocating GPU memory..." << std::endl;
 
     double *d_nodes_x, *d_nodes_y, *d_nodes_z;
@@ -130,9 +130,9 @@ int main(int argc, char* argv[]) {
     CUDA_CHECK(cudaMemcpy(d_colIdx, colIdx.data(), nnz * sizeof(int), cudaMemcpyHostToDevice));
     CUDA_CHECK(cudaMemset(d_values, 0, nnz * sizeof(double)));
 
-    // ============================================
+
     // Step 5: Local and global assembly
-    // ============================================
+
     std::cout << "\nComputing local element stiffness matrices..." << std::endl;
     launchLocalKe_Tet4_3D(d_nodes_x, d_nodes_y, d_nodes_z,
                           d_elem_conn, E, nu, d_elemKe, nElem);
@@ -144,9 +144,9 @@ int main(int argc, char* argv[]) {
     CUDA_CHECK(cudaDeviceSynchronize());
     std::cout << "Global assembly complete" << std::endl;
 
-    // ============================================
+
     // Step 6: Copy results back and save original
-    // ============================================
+
     std::vector<double> values(nnz);
     CUDA_CHECK(cudaMemcpy(values.data(), d_values, nnz * sizeof(double), cudaMemcpyDeviceToHost));
 
@@ -158,9 +158,8 @@ int main(int argc, char* argv[]) {
     outFile.close();
     std::cout << "Original matrix saved to global_matrix.txt\n";
 
-    // ============================================
     // Step 7: Apply Reverse Cuthill–McKee reordering
-    // ============================================
+
     std::cout << "\nApplying Reverse Cuthill–McKee reordering..." << std::endl;
     std::vector<int> order = reverseCuthillMcKee(nDOF, rowPtr, colIdx);
 
@@ -178,9 +177,9 @@ int main(int argc, char* argv[]) {
     outRe.close();
     std::cout << "Reordered matrix saved to global_matrix_reordered.txt\n";
 
-    // ============================================
+
     // Step 8: Solve reordered system on GPU
-    // ============================================
+
     std::cout << "\nSolving reordered global system Kx = f ..." << std::endl;
 
     // Dummy RHS (unit load)
@@ -198,9 +197,9 @@ int main(int argc, char* argv[]) {
 
     CUDA_CHECK(cudaMemcpy(x_reordered.data(), d_x, nDOF * sizeof(double), cudaMemcpyDeviceToHost));
 
-    // --------------------------------------------
+
     // Step 9: Map solution back to original order
-    // --------------------------------------------
+
     std::vector<int> inv_perm(nDOF);
     for (int i = 0; i < nDOF; ++i)
         inv_perm[order[i]] = i;

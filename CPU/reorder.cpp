@@ -71,12 +71,12 @@ void reorderCSR(
     std::vector<int>& new_col_ind,
     std::vector<double>& new_values)
 {
-    // --- Step 1: Build inverse permutation ---
+    //Build inverse permutation
     std::vector<int> inv_perm(n);
     for (int i = 0; i < n; ++i)
         inv_perm[perm[i]] = i;
 
-    // --- Step 2: Convert CSR to triplets (row, col, val) ---
+    //Convert CSR to triplets (row, col, val)
     std::vector<std::tuple<int,int,double>> triplets;
     triplets.reserve(col_ind.size());
     for (int i = 0; i < n; ++i) {
@@ -88,7 +88,7 @@ void reorderCSR(
         }
     }
 
-    // --- Step 3: Sort triplets by (row,col) ---
+    //Sort triplets by (row,col)
     std::sort(triplets.begin(), triplets.end(),
               [](auto& a, auto& b) {
                   if (std::get<0>(a) != std::get<0>(b))
@@ -96,7 +96,7 @@ void reorderCSR(
                   return std::get<1>(a) < std::get<1>(b);
               });
 
-    // --- Step 4: Rebuild CSR ---
+    //Rebuild CSR
     new_row_ptr.assign(n + 1, 0);
     new_col_ind.resize(triplets.size());
     new_values.resize(triplets.size());
