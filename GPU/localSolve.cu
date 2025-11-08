@@ -30,14 +30,14 @@ void kernelKe_Tet4_3D(
     int e = blockIdx.x * blockDim.x + threadIdx.x;
     if (e >= nElem) return;
 
-    // --- 1) connectivity & coords
+    //connectivity & coords
     int n0 = conn[4*e+0], n1 = conn[4*e+1], n2 = conn[4*e+2], n3 = conn[4*e+3];
     double x0=X[n0], y0=Y[n0], z0=Z[n0];
     double x1=X[n1], y1=Y[n1], z1=Z[n1];
     double x2=X[n2], y2=Y[n2], z2=Z[n2];
     double x3=X[n3], y3=Y[n3], z3=Z[n3];
 
-    // --- 2) Jacobian J = [x1-x0, x2-x0, x3-x0; ...]
+    //Jacobian J = [x1-x0, x2-x0, x3-x0; ...]
     double j00=x1-x0, j01=x2-x0, j02=x3-x0;
     double j10=y1-y0, j11=y2-y0, j12=y3-y0;
     double j20=z1-z0, j21=z2-z0, j22=z3-z0;
@@ -50,7 +50,7 @@ void kernelKe_Tet4_3D(
     double invDet = 1.0 / detJ;
     double volume = detJ / 6.0;
 
-    // --- 3) J^{-1} and J^{-T}
+    //J^{-1} and J^{-T}
     double i00 =  (j11*j22 - j12*j21)*invDet;
     double i01 = -(j01*j22 - j02*j21)*invDet;
     double i02 =  (j01*j12 - j02*j11)*invDet;
@@ -66,7 +66,7 @@ void kernelKe_Tet4_3D(
     double it10=i01, it11=i11, it12=i21;
     double it20=i02, it21=i12, it22=i22;
 
-    // --- 4) grad N in physical coords (constant for linear tet)
+    //grad N in physical coords (constant for linear tet)
     // reference grads: N1[-1,-1,-1], N2[1,0,0], N3[0,1,0], N4[0,0,1]
     double dNr[4][3] = {{-1,-1,-1},{1,0,0},{0,1,0},{0,0,1}};
     double gx[4], gy[4], gz[4];
@@ -78,7 +78,7 @@ void kernelKe_Tet4_3D(
         gz[a] = it20*a0 + it21*a1 + it22*a2;
     }
 
-    // --- 5) Build B (6x12)
+    //Build B (6x12)
     double B[72] = {0.0};
     #pragma unroll
     for (int a=0;a<4;++a) {
@@ -92,7 +92,7 @@ void kernelKe_Tet4_3D(
         B[5*12 + c+0] = dNy; B[5*12 + c+1] = dNx; // gamma_xy
     }
 
-    // --- 6) D, DB, Ke = B^T D B * volume
+    //D, DB, Ke = B^T D B * volume
     double D[36]; build_D_3D(E, nu, D);
     double DB[72];
     // DB = D(6x6) * B(6x12)
@@ -119,7 +119,7 @@ void kernelKe_Tet4_3D(
     }
 }
 
-// -------- Host launcher (simple) --------
+//Host launcher
 // Inputs are generated from mesh parsing
 void launchLocalKe_Tet4_3D(
     const double* d_nodes_x,

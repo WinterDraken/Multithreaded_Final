@@ -15,7 +15,7 @@ def make_3d_bracket(out_msh="bracket_3d.msh",
     gmsh.initialize()
     gmsh.model.add("L_bracket_3D")
 
-    # --- Define 2D profile (L shape) ---
+    #Define 2D profile (L shape)
     def P(x, y, lc=mesh_size):
         return gmsh.model.geo.addPoint(x, y, 0, lc)
 
@@ -39,7 +39,7 @@ def make_3d_bracket(out_msh="bracket_3d.msh",
     surf = gmsh.model.geo.addPlaneSurface([loop])
     gmsh.model.geo.synchronize()
 
-    # --- Extrude 2D surface into 3D volume ---
+    #Extrude 2D surface into 3D volume
     dx, dy, dz = 0, 0, extrude_thickness
     extruded = gmsh.model.geo.extrude([(2, surf)], dx, dy, dz)
 
@@ -53,7 +53,7 @@ def make_3d_bracket(out_msh="bracket_3d.msh",
 
     gmsh.model.geo.synchronize()
 
-    # --- Physical groups ---
+    #Physical groups
     gmsh.model.addPhysicalGroup(3, [vol], tag=1)
     gmsh.model.setPhysicalName(3, 1, "L_bracket_volume")
 
@@ -75,12 +75,12 @@ def make_3d_bracket(out_msh="bracket_3d.msh",
         gmsh.model.addPhysicalGroup(2, top_faces, tag=12)
         gmsh.model.setPhysicalName(2, 12, "top_face")
 
-    # --- Mesh options ---
+    # Mesh options
     gmsh.option.setNumber("Mesh.Algorithm3D", 4)
     gmsh.option.setNumber("Mesh.CharacteristicLengthMin", mesh_size * 0.4)
     gmsh.option.setNumber("Mesh.CharacteristicLengthMax", mesh_size * 1.2)
 
-    # --- Generate mesh ---
+    #Generate mesh
     gmsh.model.mesh.generate(3)
     gmsh.write(out_msh)
     print(f"Wrote {out_msh}")

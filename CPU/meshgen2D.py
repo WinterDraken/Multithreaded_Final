@@ -71,7 +71,7 @@ def make_2d_bracket(out_msh="bracket_2d.msh",
     # Synchronize geometry
     gmsh.model.geo.synchronize()
 
-    # --- Physical groups (useful for FEM BCs) ---
+    # Physical groups (useful for FEM BCs) 
     gmsh.model.addPhysicalGroup(2, [surf], tag=1)
     gmsh.model.setPhysicalName(2, 1, "L_bracket_2D")
 
@@ -84,7 +84,7 @@ def make_2d_bracket(out_msh="bracket_2d.msh",
     gmsh.model.addPhysicalGroup(1, [l[1], l[2], l[3], l[4]], tag=13)
     gmsh.model.setPhysicalName(1, 13, "outer_edges")
 
-    # --- Mesh options ---
+    #Mesh options 
     gmsh.option.setNumber("Mesh.Algorithm", 6)  # Frontal-Delaunay
     gmsh.option.setNumber("Mesh.CharacteristicLengthMin", mesh_size * 0.5)
     gmsh.option.setNumber("Mesh.CharacteristicLengthMax", mesh_size * 1.5)

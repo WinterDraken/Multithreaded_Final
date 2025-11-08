@@ -6,7 +6,7 @@
 #include <limits>
 #include "mesh_parser.h"
 
-// ---------- Gmsh v2 Parser ----------
+// Gmsh v2 Parser 
 void parseMSHv2(std::ifstream &file, std::vector<Node> &nodes, std::vector<Element> &elements) {
     std::string line;
     bool readingNodes = false, readingElements = false;
@@ -41,7 +41,7 @@ void parseMSHv2(std::ifstream &file, std::vector<Node> &nodes, std::vector<Eleme
     }
 }
 
-// ---------- Public API: Parse mesh file ----------
+//Public API: Parse mesh file 
 bool parseMeshFile(const std::string& filename, 
                    std::vector<Node>& nodes, 
                    std::vector<Element>& elements) {
@@ -75,7 +75,7 @@ bool parseMeshFile(const std::string& filename,
     return true;
 }
 
-// ---------- Gmsh v4 Parser ----------
+// Gmsh v4 Parser 
 void parseMSHv4(std::ifstream &file, std::vector<Node> &nodes, std::vector<Element> &elements) {
     std::string line;
     while (std::getline(file, line)) {
@@ -158,7 +158,7 @@ void parseMSHv4(std::ifstream &file, std::vector<Node> &nodes, std::vector<Eleme
     }
 }
 
-// ---------- Save to CSV ----------
+// Save to CSV 
 void saveCSV(const std::vector<Node> &nodes,
              const std::vector<Element> &elements) {
     std::ofstream nodeCSV("nodes.csv");
@@ -180,7 +180,7 @@ void saveCSV(const std::vector<Node> &nodes,
     elemCSV.close();
 }
 
-// ---------- Save to Binary ----------
+// Save to Binary
 void saveBinary(const std::vector<Node> &nodes,
                 const std::vector<Element> &elements) {
     std::ofstream nodeBin("nodes.bin", std::ios::binary);
@@ -203,5 +203,3 @@ void saveBinary(const std::vector<Node> &nodes,
     elemBin.close();
 }
 
-// Note: main() function removed - this file is now used as a library.
-// The main entry point is in main.cpp
