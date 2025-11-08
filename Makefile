@@ -17,7 +17,7 @@ CXX_FLAGS = -O3 -std=c++14 -Wall
 INCLUDES = -I$(CPU_DIR) -I$(GPU_DIR)
 
 # Source files
-CPU_SOURCES = $(CPU_DIR)/mesh_parser.cpp $(CPU_DIR)/csr_builder.cpp
+CPU_SOURCES = $(CPU_DIR)/mesh_parser.cpp $(CPU_DIR)/csr_builder.cpp $(CPU_DIR)/reorder.cpp
 GPU_SOURCES = $(GPU_DIR)/localSolve.cu $(GPU_DIR)/globalAsm.cu
 MAIN_SOURCE = main.cpp
 
