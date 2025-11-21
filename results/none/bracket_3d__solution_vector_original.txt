@@ -1,4 +1,4 @@
-# Solution vector (reordered)
+# Solution vector (original ordering, method=none)
 0.00440466
 0.00440466
 0.00440466
