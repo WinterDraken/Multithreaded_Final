@@ -1,4 +1,4 @@
-# Solution vector (original order)
+# Solution vector (original ordering, method=amd)
 0.00440466
 0.00440466
 0.00440466

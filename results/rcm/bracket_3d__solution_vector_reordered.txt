@@ -1,4 +1,4 @@
-# Solution vector (reordered)
+# Solution vector (reordered space, method=rcm)
 8.30602e-05
 5.01575e-06
 3.49316e-05

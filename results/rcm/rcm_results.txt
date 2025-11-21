@@ -1,5 +1,0 @@
-# Timing results for method: rcm
-CPU_Assembly_ms 7.04441
-Reordering_ms 1.97689
-HostToDevice_ms 0.169724
-GPU_Solve_ms 780.191

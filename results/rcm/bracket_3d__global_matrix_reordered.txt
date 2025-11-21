@@ -1,4 +1,4 @@
-# Reordered stiffness matrix (rcm)
+# Global stiffness matrix (reordered: rcm)
 0 0 236007
 0 2 45817.7
 0 4 171794
