@@ -1,4 +1,4 @@
-# Global stiffness matrix (original order)
+# Reordered stiffness matrix (none)
 3 3 266495
 3 4 -109768
 3 5 -93280.4
