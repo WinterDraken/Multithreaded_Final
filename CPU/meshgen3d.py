@@ -1,24 +1,25 @@
 """
-3D L-bracket mesh generator using Gmsh Python API.
-Extrudes a 2D L-shaped profile into a solid and meshes it with tetrahedra.
+Large 3D L-bracket mesh generator using Gmsh Python API.
+Scales up the 2D L-shaped profile and extrudes it into a solid mesh.
 """
 
 import gmsh
 
 
-def make_3d_bracket(out_msh="bracket_3d.msh",
-                    leg1=60.0,
-                    leg2=40.0,
-                    web=5.0,
-                    mesh_size=3.0,
-                    extrude_thickness=10.0):
+def make_3d_bracket(out_msh="bracket_3d_large.msh",
+                    leg1=200.0,        # horizontal leg (mm)
+                    leg2=200.0,        # vertical leg   (mm)
+                    web=12.0,          # thickness of the L rib
+                    mesh_size=4.0,     # coarse mesh (2.0 for fine)
+                    extrude_thickness=50.0):  # bracket depth
     gmsh.initialize()
-    gmsh.model.add("L_bracket_3D")
+    gmsh.model.add("L_bracket_3D_large")
 
-    #Define 2D profile (L shape)
+    # --- Define 2D L-shape profile --- 
     def P(x, y, lc=mesh_size):
         return gmsh.model.geo.addPoint(x, y, 0, lc)
 
+    # Larger geometry
     p0 = P(0, 0)
     p1 = P(leg1, 0)
     p2 = P(leg1, web)
@@ -39,33 +40,33 @@ def make_3d_bracket(out_msh="bracket_3d.msh",
     surf = gmsh.model.geo.addPlaneSurface([loop])
     gmsh.model.geo.synchronize()
 
-    #Extrude 2D surface into 3D volume
-    dx, dy, dz = 0, 0, extrude_thickness
+    # --- Extrude to 3D ---
+    dx = dy = 0
+    dz = extrude_thickness
     extruded = gmsh.model.geo.extrude([(2, surf)], dx, dy, dz)
 
-    vol = None
+    volume = None
     for ent in extruded:
         if ent[0] == 3:
-            vol = ent[1]
+            volume = ent[1]
             break
-    if vol is None:
-        raise RuntimeError("Extrusion failed: no volume found.")
+    if volume is None:
+        raise RuntimeError("Extrusion failed!")
 
     gmsh.model.geo.synchronize()
 
-    #Physical groups
-    gmsh.model.addPhysicalGroup(3, [vol], tag=1)
-    gmsh.model.setPhysicalName(3, 1, "L_bracket_volume")
+    # --- Physical Groups ---
+    gmsh.model.addPhysicalGroup(3, [volume], tag=1)
+    gmsh.model.setPhysicalName(3, 1, "Large_L_bracket_volume")
 
-    # Identify top and bottom faces by z-extents
-    boundary_faces = gmsh.model.getBoundary([(3, vol)], oriented=False, recursive=False)
+    # Detect top and bottom faces
+    faces = gmsh.model.getBoundary([(3, volume)], oriented=False, recursive=False)
     bottom_faces, top_faces = [], []
-    for dim, tag in boundary_faces:
+    for dim, tag in faces:
         xmin, ymin, zmin, xmax, ymax, zmax = gmsh.model.getBoundingBox(dim, tag)
-        zcenter = 0.5 * (zmin + zmax)
-        if zcenter < 1e-6:
+        if abs(zmin) < 1e-6:
             bottom_faces.append(tag)
-        elif abs(zcenter - extrude_thickness) < 1e-6:
+        elif abs(zmax - extrude_thickness) < 1e-6:
             top_faces.append(tag)
 
     if bottom_faces:
@@ -75,20 +76,21 @@ def make_3d_bracket(out_msh="bracket_3d.msh",
         gmsh.model.addPhysicalGroup(2, top_faces, tag=12)
         gmsh.model.setPhysicalName(2, 12, "top_face")
 
-    # Mesh options
-    gmsh.option.setNumber("Mesh.Algorithm3D", 4)
-    gmsh.option.setNumber("Mesh.CharacteristicLengthMin", mesh_size * 0.4)
-    gmsh.option.setNumber("Mesh.CharacteristicLengthMax", mesh_size * 1.2)
+    # --- Mesh Settings ---
+    gmsh.option.setNumber("Mesh.Algorithm3D", 4)  # Delaunay
+    gmsh.option.setNumber("Mesh.Optimize", 1)
+    gmsh.option.setNumber("Mesh.CharacteristicLengthMin", mesh_size * 0.7)
+    gmsh.option.setNumber("Mesh.CharacteristicLengthMax", mesh_size * 1.3)
 
-    #Generate mesh
+    # --- Generate ---
     gmsh.model.mesh.generate(3)
     gmsh.write(out_msh)
-    print(f"Wrote {out_msh}")
+    print(f"Mesh written: {out_msh}")
 
     try:
-        gmsh.write("bracket_3d.vtk")
-        print("Also wrote bracket_3d.vtk")
-    except Exception:
+        gmsh.write(out_msh.replace(".msh", ".vtk"))
+        print("VTK exported.")
+    except:
         pass
 
     gmsh.finalize()
