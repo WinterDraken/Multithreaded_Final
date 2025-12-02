@@ -5,6 +5,9 @@
 #include <iostream>
 #include <cmath>
 
+
+//Sparse linear algebra
+
 #define CHECK_CUSPARSE(call)                                                 \
     do {                                                                     \
         cusparseStatus_t s = (call);                                         \
@@ -14,6 +17,9 @@
             exit(1);                                                         \
         }                                                                    \
     } while (0)
+
+
+//Dense vector opterations
 
 #define CHECK_CUBLAS(call)                                                   \
     do {                                                                     \

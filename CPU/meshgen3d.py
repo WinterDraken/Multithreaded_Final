@@ -11,9 +11,10 @@ def make_3d_bracket(out_msh="bracket_3d_large.msh",
                     leg2=200.0,        # vertical leg   (mm)
                     web=12.0,          # thickness of the L rib
                     mesh_size=4.0,     # coarse mesh (2.0 for fine)
-                    extrude_thickness=50.0):  # bracket depth
+                    extrude_thickness=50.0,  # bracket depth
+                    model_name="L_bracket_3D"):  # model name for Gmsh
     gmsh.initialize()
-    gmsh.model.add("L_bracket_3D_large")
+    gmsh.model.add(model_name)
 
     # --- Define 2D L-shape profile --- 
     def P(x, y, lc=mesh_size):
@@ -97,4 +98,87 @@ def make_3d_bracket(out_msh="bracket_3d_large.msh",
 
 
 if __name__ == "__main__":
-    make_3d_bracket()
+    # Generate all 6 meshes: bracket_3d, bracket_3d_large, and 4 progressively larger ones
+    # bracket_3d: 455 nodes, 1447 elements
+    # bracket_3d_large: 4683 nodes, 24130 elements
+    
+    configs = [
+        {
+            "name": "bracket_3d",
+            "leg1": 60.0,
+            "leg2": 40.0,
+            "web": 5.0,
+            "mesh_size": 6.0,  # Coarse mesh for smaller geometry
+            "extrude_thickness": 10.0,
+            "model_name": "L_bracket_3D"
+        },
+        {
+            "name": "bracket_3d_large",
+            "leg1": 200.0,
+            "leg2": 200.0,
+            "web": 12.0,
+            "mesh_size": 4.0,  # Medium mesh
+            "extrude_thickness": 50.0,
+            "model_name": "L_bracket_3D_large"
+        },
+        {
+            "name": "bracket_3d_xlarge",
+            "leg1": 250.0,
+            "leg2": 250.0,
+            "web": 15.0,
+            "mesh_size": 3.5,  # Finer mesh
+            "extrude_thickness": 60.0,
+            "model_name": "L_bracket_3D_xlarge"
+        },
+        {
+            "name": "bracket_3d_xxlarge",
+            "leg1": 300.0,
+            "leg2": 300.0,
+            "web": 18.0,
+            "mesh_size": 3.0,  # Even finer mesh
+            "extrude_thickness": 70.0,
+            "model_name": "L_bracket_3D_xxlarge"
+        },
+        {
+            "name": "bracket_3d_xxxlarge",
+            "leg1": 350.0,
+            "leg2": 350.0,
+            "web": 20.0,
+            "mesh_size": 2.5,  # Very fine mesh
+            "extrude_thickness": 80.0,
+            "model_name": "L_bracket_3D_xxxlarge"
+        },
+        {
+            "name": "bracket_3d_xxxxlarge",
+            "leg1": 400.0,
+            "leg2": 400.0,
+            "web": 24.0,
+            "mesh_size": 2.0,  # Finest mesh
+            "extrude_thickness": 100.0,
+            "model_name": "L_bracket_3D_xxxxlarge"
+        }
+    ]
+    
+    print("Generating all 6 3D meshes...")
+    print("=" * 60)
+    
+    for i, config in enumerate(configs, 1):
+        print(f"\n[{i}/6] Generating {config['name']}.msh...")
+        print(f"  Parameters: leg1={config['leg1']}, leg2={config['leg2']}, "
+              f"web={config['web']}, mesh_size={config['mesh_size']}, "
+              f"extrude={config['extrude_thickness']}")
+        
+        make_3d_bracket(
+            out_msh=f"{config['name']}.msh",
+            leg1=config['leg1'],
+            leg2=config['leg2'],
+            web=config['web'],
+            mesh_size=config['mesh_size'],
+            extrude_thickness=config['extrude_thickness'],
+            model_name=config['model_name']
+        )
+        
+        print(f"  ✓ Completed {config['name']}.msh")
+    
+    print("\n" + "=" * 60)
+    print("All 6 meshes generated successfully!")
