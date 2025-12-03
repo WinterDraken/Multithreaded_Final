@@ -22,3 +22,7 @@
 .DS_Store
 Thumbs.db
 
+*.err
+*.out
+
+results/

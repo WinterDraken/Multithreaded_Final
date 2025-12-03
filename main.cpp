@@ -43,12 +43,15 @@ static void makeDir(const std::string& p) {
 // MAIN FEM GPU PIPELINE
 // ------------------------------------------------------------
 int main(int argc, char* argv[]) {
-    // -------------------- Args: mesh & method ----------------------
+    // -------------------- Args: mesh & method & run_id ----------------------
     std::string meshFile = "CPU/bracket_3d.msh";
     if (argc > 1) meshFile = argv[1];
 
     std::string methodStr = "rcm";
     if (argc > 2) methodStr = argv[2];
+    
+    std::string runId = "";  // Optional run identifier for unique filenames
+    if (argc > 3) runId = argv[3];
 
     ReorderMethod method = parseReorderMethod(methodStr);
     std::string methodTag = methodToString(method);
@@ -201,15 +204,16 @@ int main(int argc, char* argv[]) {
                           nnz * sizeof(double),
                           cudaMemcpyDeviceToHost));
 
-    {
-        std::ofstream out(methodFolder + "/" +
-                          meshBase + "__global_matrix.txt");
-        out << "# Global stiffness matrix (original order)\n";
-        for (int i = 0; i < nDOF; ++i)
-            for (int j = rowPtr[i]; j < rowPtr[i+1]; ++j)
-                out << i << " " << colIdx[j] << " " << values[j] << "\n";
-        std::cout << "Saved original matrix.\n";
-    }
+    // Commented out: Save original matrix
+    // {
+    //     std::ofstream out(methodFolder + "/" +
+    //                       meshBase + "__global_matrix.txt");
+    //     out << "# Global stiffness matrix (original order)\n";
+    //     for (int i = 0; i < nDOF; ++i)
+    //         for (int j = rowPtr[i]; j < rowPtr[i+1]; ++j)
+    //             out << i << " " << colIdx[j] << " " << values[j] << "\n";
+    //     std::cout << "Saved original matrix.\n";
+    // }
 
     // -------------------- Step 7: Reordering (AFTER assembly) -----
     std::vector<int> perm;
@@ -230,15 +234,16 @@ int main(int argc, char* argv[]) {
     auto tR1 = Clock::now();
     reorderMs = std::chrono::duration<double,std::milli>(tR1 - tR0).count();
 
-    {
-        std::ofstream out(methodFolder + "/" +
-                          meshBase + "__global_matrix_reordered.txt");
-        out << "# Global stiffness matrix (reordered: " << methodTag << ")\n";
-        for (int i = 0; i < nDOF; ++i)
-            for (int j = rowPtr_r[i]; j < rowPtr_r[i+1]; ++j)
-                out << i << " " << colIdx_r[j] << " " << values_r[j] << "\n";
-        std::cout << "Saved reordered matrix.\n";
-    }
+    // Commented out: Save reordered matrix
+    // {
+    //     std::ofstream out(methodFolder + "/" +
+    //                       meshBase + "__global_matrix_reordered.txt");
+    //     out << "# Global stiffness matrix (reordered: " << methodTag << ")\n";
+    //     for (int i = 0; i < nDOF; ++i)
+    //         for (int j = rowPtr_r[i]; j < rowPtr_r[i+1]; ++j)
+    //             out << i << " " << colIdx_r[j] << " " << values_r[j] << "\n";
+    //     std::cout << "Saved reordered matrix.\n";
+    // }
 
     // -------------------- Step 8: Solve Kx=b in reordered space ----
     std::cout << "Solving Kx = f in reordered space...\n";
@@ -290,29 +295,40 @@ int main(int argc, char* argv[]) {
     for (int oldIdx = 0; oldIdx < nDOF; ++oldIdx)
         x_original[oldIdx] = x_reordered[inv_perm[oldIdx]];
 
-    {
-        std::ofstream out(methodFolder + "/" +
-                          meshBase + "__solution_vector_reordered.txt");
-        out << "# Solution vector (reordered space, method=" << methodTag << ")\n";
-        for (double v : x_reordered) out << v << "\n";
-        std::cout << "Saved reordered solution.\n";
-    }
+    // Commented out: Save solution vectors
+    // {
+    //     std::ofstream out(methodFolder + "/" +
+    //                       meshBase + "__solution_vector_reordered.txt");
+    //     out << "# Solution vector (reordered space, method=" << methodTag << ")\n";
+    //     for (double v : x_reordered) out << v << "\n";
+    //     std::cout << "Saved reordered solution.\n";
+    // }
 
-    {
-        std::ofstream out(methodFolder + "/" +
-                          meshBase + "__solution_vector_original.txt");
-        out << "# Solution vector (original ordering, method=" << methodTag << ")\n";
-        for (double v : x_original) out << v << "\n";
-        std::cout << "Saved original-order solution.\n";
-    }
+    // {
+    //     std::ofstream out(methodFolder + "/" +
+    //                       meshBase + "__solution_vector_original.txt");
+    //     out << "# Solution vector (original ordering, method=" << methodTag << ")\n";
+    //     for (double v : x_original) out << v << "\n";
+    //     std::cout << "Saved original-order solution.\n";
+    // }
 
     // -------------------- Step 10: Save timing results -------------
     {
-        std::string timingFile =
-            methodFolder + "/" + meshBase + "__" + methodTag + "_results.txt";
+        std::string timingFile;
+        if (runId.empty()) {
+            // Default: single results file (backward compatible)
+            timingFile = methodFolder + "/" + meshBase + "__" + methodTag + "_results.txt";
+        } else {
+            // With run ID: unique filename for each run
+            timingFile = methodFolder + "/" + meshBase + "__" + methodTag + "_run" + runId + "_results.txt";
+        }
         std::ofstream tf(timingFile);
         tf << "# Timing results for mesh=" << meshBase
-           << ", method=" << methodTag << "\n";
+           << ", method=" << methodTag;
+        if (!runId.empty()) {
+            tf << ", run=" << runId;
+        }
+        tf << "\n";
         tf << "CPU_Assembly_ms " << cpuAssemblyMs << "\n";
         tf << "Reordering_ms "   << reorderMs     << "\n";
         tf << "HostToDevice_ms " << h2dMs         << "\n";

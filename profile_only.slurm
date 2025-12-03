@@ -153,14 +153,25 @@ for mesh_file in "${PROFILE_MESHES[@]}"; do
         # 2. Use ncu for detailed kernel-level metric profiling
         if $NCU_EXISTS; then
             echo "    Collecting detailed metrics with ncu..."
-            ncu --set full --csv --log-file="${profile_prefix}.ncu_metrics.csv" \
+            # Use --set default instead of full to avoid resource exhaustion
+            # Add --target-processes all to handle child processes
+            # --csv outputs to stdout, redirect to file
+            # --log-file captures ncu's own log messages
+            # Capture stderr separately to see actual errors
+            ncu --set default \
+                --target-processes all \
+                --csv --log-file="${profile_prefix}.ncu.log" \
                 --force-overwrite \
-                ./fem_assembly "$mesh_file" "$method" > /dev/null 2>&1 || true
+                ./fem_assembly "$mesh_file" "$method" > "${profile_prefix}.ncu_metrics.csv" 2> "${profile_prefix}.ncu_stderr.log" || true
             
             if [ -f "${profile_prefix}.ncu_metrics.csv" ]; then
                 echo "      ✓ ncu metrics generated: ${profile_prefix}.ncu_metrics.csv"
             else
                 echo "      ✗ ncu metrics not found (may have failed or hit resource limits)"
+                if [ -f "${profile_prefix}.ncu_stderr.log" ]; then
+                    echo "      Error output:"
+                    tail -20 "${profile_prefix}.ncu_stderr.log" | sed 's/^/        /'
+                fi
             fi
         else
             echo "    Skipping ncu profiling (tool not available)"

@@ -2,12 +2,13 @@
 #SBATCH --job-name=fem_xlarge_profile
 #SBATCH --output=xlarge_profile_%j.out
 #SBATCH --error=xlarge_profile_%j.err
-#SBATCH --partition=rtx
+#SBATCH --partition=gpu-h100
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=4
 #SBATCH --time=06:00:00
 #SBATCH --mail-type=END,FAIL
+#SBATCH -A TRA25006
 
 # ============================================================================
 # FEM GPU Solver: xlarge Mesh Run & Profile
@@ -192,14 +193,25 @@ for method in "${METHODS[@]}"; do
     # 2. Use ncu for detailed kernel-level metric profiling
     if $NCU_EXISTS; then
         echo "  Collecting detailed metrics with ncu..."
-        ncu --set full --csv --log-file="${profile_prefix}.ncu_metrics.csv" \
+        # Use --set default instead of full to avoid resource exhaustion
+        # Add --target-processes all to handle child processes
+        # --csv outputs to stdout, redirect to file
+        # --log-file captures ncu's own log messages
+        # Capture stderr separately to see actual errors
+        ncu --set default \
+            --target-processes all \
+            --csv --log-file="${profile_prefix}.ncu.log" \
             --force-overwrite \
-            ./fem_assembly "$MESH_FILE" "$method" > /dev/null 2>&1 || true
+            ./fem_assembly "$MESH_FILE" "$method" > "${profile_prefix}.ncu_metrics.csv" 2> "${profile_prefix}.ncu_stderr.log" || true
         
         if [ -f "${profile_prefix}.ncu_metrics.csv" ]; then
             echo "    ✓ ncu metrics generated: ${profile_prefix}.ncu_metrics.csv"
         else
             echo "    ✗ ncu metrics not found (may have failed or hit resource limits)"
+            if [ -f "${profile_prefix}.ncu_stderr.log" ]; then
+                echo "    Error output:"
+                tail -20 "${profile_prefix}.ncu_stderr.log" | sed 's/^/      /'
+            fi
         fi
     else
         echo "  Skipping ncu profiling (tool not available)"

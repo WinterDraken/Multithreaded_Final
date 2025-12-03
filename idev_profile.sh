@@ -211,10 +211,17 @@ for mesh_file in "${PROFILE_MESHES[@]}"; do
         # 2. Use ncu for detailed kernel-level metric profiling (replaces nvprof)
         echo "    Collecting detailed metrics with ncu..."
         # FIXED: NO srun, run ncu directly
+        # Use --set default instead of full to avoid resource exhaustion
+        # Add --target-processes all to handle child processes
+        # --csv outputs to stdout, redirect to file
+        # --log-file captures ncu's own log messages
+        # Capture stderr separately to see actual errors
         # Old: srun --cpu-bind=none ncu --set full --csv --log-file="$profile_prefix.ncu_metrics.csv" \
-        ncu --set full --csv --log-file="$profile_prefix.ncu_metrics.csv" \
+        ncu --set default \
+            --target-processes all \
+            --csv --log-file="$profile_prefix.ncu.log" \
             --force-overwrite \
-            ./fem_assembly "$mesh_file" "$method" > /dev/null 2>&1 || true
+            ./fem_assembly "$mesh_file" "$method" > "$profile_prefix.ncu_metrics.csv" 2> "$profile_prefix.ncu_stderr.log" || true
 
         # 3. Also collect basic timing breakdown
         # ... (rest of Phase 2 logic remains the same)

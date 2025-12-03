@@ -2,11 +2,11 @@
 #SBATCH --job-name=short_benchmark_profile
 #SBATCH --output=short_benchmark_profile_%j.out
 #SBATCH --error=short_benchmark_profile_%j.err
-#SBATCH --partition=rtx-dev
+#SBATCH --partition=gpu-h100
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=8
-#SBATCH --time=01:00:00
+#SBATCH --time=04:00:00
 #SBATCH --mail-type=END,FAIL
 
 # ============================================================================

@@ -53,6 +53,17 @@ $(MAIN_OBJECT): $(MAIN_SOURCE)
 clean:
 	rm -f $(TARGET) $(CPU_OBJECTS) $(GPU_OBJECTS) $(MAIN_OBJECT)
 
+tidy:
+	rm -f $(CPU_OBJECTS) $(GPU_OBJECTS) $(MAIN_OBJECT)
+
+profile-clean:
+	rm -rf large_profile_results/
+	rm -rf xlarge_profile_results/
+
+out-clean:
+	rm -r *.out
+	rm -r *.err
+
 # Phony targets
 .PHONY: all clean
 
