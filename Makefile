@@ -35,6 +35,7 @@ all: $(TARGET)
 # Link everything together
 $(TARGET): $(CPU_OBJECTS) $(GPU_OBJECTS) $(MAIN_OBJECT)
 	$(NVCC) $(NVCC_FLAGS) $(INCLUDES) -o $@ $^ -lcudart -lcusparse -lcublas
+	rm -f $(CPU_OBJECTS) $(GPU_OBJECTS) $(MAIN_OBJECT)
 
 # Compile CPU source files
 $(CPU_DIR)/%.o: $(CPU_DIR)/%.cpp $(CPU_DIR)/%.h
