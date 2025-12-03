@@ -6,6 +6,26 @@
 #include <cmath>
 
 
+// Compatibility shim: some CUDA/cuSPARSE versions rename the SpMV algorithm
+// enum/constant. Provide a fallback mapping so code compiles against CUDA 12.x
+// as well as older versions.
+#ifndef CUSPARSE_MV_ALG_DEFAULT
+#ifdef CUSPARSE_SPMV_ALG_DEFAULT
+#define CUSPARSE_MV_ALG_DEFAULT CUSPARSE_SPMV_ALG_DEFAULT
+#else
+/* If neither symbol is available, fall back to 0 (default algorithm enum).
+    This keeps the call valid - on many headers the enum underlying value
+    is 0 for the default algorithm. */
+#define CUSPARSE_MV_ALG_DEFAULT 0
+#endif
+#endif
+
+// Ensure we pass the correct enum type to cusparse APIs
+#ifndef CUSPARSE_MV_ALG_CAST
+#define CUSPARSE_MV_ALG_CAST(x) ((cusparseSpMVAlg_t)(x))
+#endif
+
+
 //Sparse linear algebra
 
 #define CHECK_CUSPARSE(call)                                                 \
@@ -75,14 +95,14 @@ void solveCG_CSR_GPU(
     CHECK_CUSPARSE(cusparseSpMV_bufferSize(cusparseH,
                                            CUSPARSE_OPERATION_NON_TRANSPOSE,
                                            &alpha_neg, matA, vecX, &beta_one, vecR,
-                                           CUDA_R_64F, CUSPARSE_MV_ALG_DEFAULT, &bufferSize));
+                                           CUDA_R_64F, CUSPARSE_MV_ALG_CAST(CUSPARSE_MV_ALG_DEFAULT), &bufferSize));
     if (bufferSize > 0) cudaMalloc(&dBuffer, bufferSize);
 
     // r = b - A*x
     cudaMemcpy(d_r, d_b, n * sizeof(double), cudaMemcpyDeviceToDevice);
     CHECK_CUSPARSE(cusparseSpMV(cusparseH, CUSPARSE_OPERATION_NON_TRANSPOSE,
                                 &alpha_neg, matA, vecX, &beta_one, vecR,
-                                CUDA_R_64F, CUSPARSE_MV_ALG_DEFAULT, dBuffer));
+                                CUDA_R_64F, CUSPARSE_MV_ALG_CAST(CUSPARSE_MV_ALG_DEFAULT), dBuffer));
 
     // p = r
     cudaMemcpy(d_p, d_r, n * sizeof(double), cudaMemcpyDeviceToDevice);
@@ -107,8 +127,8 @@ void solveCG_CSR_GPU(
         const double alpha_one = 1.0;
         const double beta_zero = 0.0;
         CHECK_CUSPARSE(cusparseSpMV(cusparseH, CUSPARSE_OPERATION_NON_TRANSPOSE,
-                                    &alpha_one, matA, vecP, &beta_zero, vecAP,
-                                    CUDA_R_64F, CUSPARSE_MV_ALG_DEFAULT, dBuffer));
+                        &alpha_one, matA, vecP, &beta_zero, vecAP,
+                        CUDA_R_64F, CUSPARSE_MV_ALG_CAST(CUSPARSE_MV_ALG_DEFAULT), dBuffer));
 
         // p^T * Ap
         double pAp = 0.0;
