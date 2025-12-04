@@ -1,7 +1,7 @@
 mesh_tag,mesh_file,method,solver,num_runs,avg_Bandwidth_orig,avg_Bandwidth_reord,avg_Reorder_ms,avg_Cholesky_factor_ms,avg_Solve_ms
-3d,CPU/bracket_3d.msh,amd,chol,10,374.000000,391.000000,0.0039784,4.52111,297.1122
+3d,CPU/bracket_3d.msh,amd,chol,10,374.000000,391.000000,0.787272,3.857651,297.497600
 3d,CPU/bracket_3d.msh,colamd,chol,10,374.000000,377.000000,9.737255,3.354848,300.715000
-3d,CPU/bracket_3d.msh,none,chol,10,374.000000,374.000000,0.005288,4.477027,332.286400
+3d,CPU/bracket_3d.msh,none,chol,10,374.000000,374.000000,0.0039784,4.52111,297.1122
 3d,CPU/bracket_3d.msh,rcm,chol,10,374.000000,53.000000,0.047850,2.793273,296.519600
 3d_large,CPU/bracket_3d_large.msh,amd,chol,10,13799.000000,13817.000000,336.558100,6405.432000,6700.149000
 3d_large,CPU/bracket_3d_large.msh,colamd,chol,10,13799.000000,13827.000000,1011.968100,8060.130000,8353.192000
