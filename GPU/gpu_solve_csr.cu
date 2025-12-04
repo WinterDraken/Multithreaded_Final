@@ -4,6 +4,7 @@
 #include <cuda_runtime.h>
 #include <iostream>
 #include <cmath>
+#include <nvToolsExt.h>  // For NVTX profiling markers
 
 
 // Compatibility shim: some CUDA/cuSPARSE versions rename the SpMV algorithm
@@ -62,6 +63,9 @@ void solveCG_CSR_GPU(
     int maxIters,
     double tol)
 {
+    // NVTX marker: Start of CG solver region (for profiling)
+    nvtxRangePushA("CG_Solver");
+    
     cusparseHandle_t cusparseH = nullptr;
     cublasHandle_t cublasH = nullptr;
     CHECK_CUSPARSE(cusparseCreate(&cusparseH));
@@ -173,4 +177,7 @@ void solveCG_CSR_GPU(
     cusparseDestroyDnVec(vecP); cusparseDestroyDnVec(vecAP);
     cusparseDestroy(cusparseH);
     cublasDestroy(cublasH);
+    
+    // NVTX marker: End of CG solver region
+    nvtxRangePop();
 }
