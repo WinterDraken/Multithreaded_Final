@@ -141,13 +141,13 @@ if __name__ == "__main__":
             "extrude_thickness": 50.0,
             "model_name": "L_bracket_3D_large_fine"
         },
-                {
+        {
             "name": "bracket_3d_large_ultrafine",
-            # Same geometry as large, even finer mesh
+            # Same geometry as large, slightly finer than 'fine' but not too large
             "leg1": 200.0,
             "leg2": 200.0,
             "web": 12.0,
-            "mesh_size": 2.8,  # finer than 3.3, still coarser than the huge ones
+            "mesh_size": 3.0,  # slightly finer than 3.3, should fit in chol
             "extrude_thickness": 50.0,
             "model_name": "L_bracket_3D_large_ultrafine"
         },
