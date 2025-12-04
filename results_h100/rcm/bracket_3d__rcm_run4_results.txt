@@ -1,0 +1,5 @@
+# Timing results for mesh=bracket_3d, method=rcm, run=4
+CPU_Assembly_ms 0.696755
+Reordering_ms 0.287563
+HostToDevice_ms 0.08685
+GPU_Solve_ms 279.969
