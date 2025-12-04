@@ -1,0 +1,2 @@
+cpu_assembly_ms,reordering_ms,h2d_ms,gpu_solve_ms,total_ms
+433.713937,4868.889699,1.400642,361.461826,5665.466105
