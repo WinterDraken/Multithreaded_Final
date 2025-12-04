@@ -18,7 +18,7 @@ INCLUDES = -I$(CPU_DIR) -I$(GPU_DIR)
 
 # Source files
 CPU_SOURCES = $(CPU_DIR)/mesh_parser.cpp $(CPU_DIR)/csr_builder.cpp $(CPU_DIR)/reorder.cpp
-GPU_SOURCES = $(GPU_DIR)/localSolve.cu $(GPU_DIR)/globalAsm.cu $(GPU_DIR)/gpu_solve_csr.cu
+GPU_SOURCES = $(GPU_DIR)/localSolve.cu $(GPU_DIR)/globalAsm.cu $(GPU_DIR)/gpu_solve_csr.cu $(GPU_DIR)/gpu_cholesky_solver.cu
 MAIN_SOURCE = main.cpp
 
 # Object files
@@ -34,7 +34,7 @@ all: $(TARGET)
 
 # Link everything together
 $(TARGET): $(CPU_OBJECTS) $(GPU_OBJECTS) $(MAIN_OBJECT)
-	$(NVCC) $(NVCC_FLAGS) $(INCLUDES) -o $@ $^ -lcudart -lcusparse -lcublas
+	$(NVCC) $(NVCC_FLAGS) $(INCLUDES) -o $@ $^ -lcudart -lcusparse -lcublas -lcusolver
 
 # Compile CPU source files
 $(CPU_DIR)/%.o: $(CPU_DIR)/%.cpp $(CPU_DIR)/%.h
