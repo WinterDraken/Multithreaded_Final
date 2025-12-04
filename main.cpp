@@ -319,6 +319,101 @@ int main(int argc, char* argv[])
     auto tSolve1 = Clock::now();
     solve_ms = std::chrono::duration<double,std::milli>(tSolve1 - tSolve0).count();
 
+    // ---------------- Save Solution Vector (Displacements) ----------------
+    std::vector<double> x_solution(nDOF);
+    cudaMemcpy(x_solution.data(), d_x, nDOF*sizeof(double), cudaMemcpyDeviceToHost);
+    
+    // Apply inverse permutation to get solution in original ordering
+    std::vector<int> inv_perm(nDOF);
+    for (int i = 0; i < nDOF; i++) {
+        inv_perm[perm_total[i]] = i;
+    }
+    std::vector<double> x_original(nDOF);
+    for (int i = 0; i < nDOF; i++) {
+        x_original[i] = x_solution[inv_perm[i]];
+    }
+    
+    // Save solution vector
+    std::string solutionFile = "results/" + methodTag + "/" + meshBase + "__" + methodTag + "_solution.txt";
+    std::ofstream solf(solutionFile);
+    solf << "# Solution vector (displacements) for mesh: " << meshBase << ", method: " << methodTag << "\n";
+    solf << "# Format: DOF_index displacement_value\n";
+    solf << "# nDOF: " << nDOF << "\n";
+    solf << "# nNodes: " << nNodes << "\n";
+    solf << "# ndof_per_node: " << ndof_per_node << "\n";
+    for (int i = 0; i < nDOF; i++) {
+        solf << i << " " << std::scientific << std::setprecision(15) << x_original[i] << "\n";
+    }
+    solf.close();
+    
+    // ---------------- Save Sparse Matrix Patterns ----------------
+    // Save original matrix pattern (before reordering)
+    std::string matrixOrigFile = "results/" + methodTag + "/" + meshBase + "__" + methodTag + "_matrix_original.txt";
+    std::ofstream matorig(matrixOrigFile);
+    matorig << "# Sparse matrix pattern (original, before reordering)\n";
+    matorig << "# Format: rowPtr array, then colIdx array\n";
+    matorig << "# nDOF: " << nDOF << "\n";
+    matorig << "# nnz: " << nnz << "\n";
+    matorig << "# rowPtr (length " << (nDOF+1) << "):\n";
+    for (size_t i = 0; i < rowPtr.size(); i++) {
+        matorig << rowPtr[i];
+        if (i < rowPtr.size() - 1) matorig << " ";
+    }
+    matorig << "\n# colIdx (length " << nnz << "):\n";
+    for (int i = 0; i < nnz; i++) {
+        matorig << colIdx[i];
+        if (i < nnz - 1) matorig << " ";
+    }
+    matorig << "\n";
+    matorig.close();
+    
+    // Save reordered matrix pattern
+    std::string matrixReordFile = "results/" + methodTag + "/" + meshBase + "__" + methodTag + "_matrix_reordered.txt";
+    std::ofstream matreord(matrixReordFile);
+    matreord << "# Sparse matrix pattern (after reordering)\n";
+    matreord << "# Format: rowPtr array, then colIdx array\n";
+    matreord << "# nDOF: " << nDOF << "\n";
+    matreord << "# nnz: " << nnz << "\n";
+    matreord << "# rowPtr (length " << (nDOF+1) << "):\n";
+    for (size_t i = 0; i < rRow.size(); i++) {
+        matreord << rRow[i];
+        if (i < rRow.size() - 1) matreord << " ";
+    }
+    matreord << "\n# colIdx (length " << nnz << "):\n";
+    for (int i = 0; i < nnz; i++) {
+        matreord << rCol[i];
+        if (i < nnz - 1) matreord << " ";
+    }
+    matreord << "\n";
+    matreord.close();
+    
+    // ---------------- Save Node Coordinates for Visualization ----------------
+    std::string nodesFile = "results/" + methodTag + "/" + meshBase + "__" + methodTag + "_nodes.txt";
+    std::ofstream nodesf(nodesFile);
+    nodesf << "# Node coordinates for mesh: " << meshBase << "\n";
+    nodesf << "# Format: node_index x y z\n";
+    nodesf << "# nNodes: " << nNodes << "\n";
+    for (int i = 0; i < nNodes; i++) {
+        nodesf << i << " " << std::scientific << std::setprecision(15) 
+               << X[i] << " " << Y[i] << " " << Z[i] << "\n";
+    }
+    nodesf.close();
+    
+    // ---------------- Save Element Connectivity for Visualization ----------------
+    std::string elementsFile = "results/" + methodTag + "/" + meshBase + "__" + methodTag + "_elements.txt";
+    std::ofstream elemf(elementsFile);
+    elemf << "# Element connectivity (tetrahedral elements)\n";
+    elemf << "# Format: element_index node0 node1 node2 node3\n";
+    elemf << "# nElem: " << nElem << "\n";
+    for (int e = 0; e < nElem; e++) {
+        elemf << e;
+        for (int i = 0; i < 4; i++) {
+            elemf << " " << conn[e*4 + i];
+        }
+        elemf << "\n";
+    }
+    elemf.close();
+
     // ---------------- Save Timing ----------------
     std::ofstream tf(resultFile);
     tf << "# FEM solve results\n";
@@ -342,6 +437,17 @@ int main(int argc, char* argv[])
     tf.close();
 
     std::cout << "Wrote: " << resultFile << "\n";
+    std::cout << "Wrote: " << solutionFile << "\n";
+    std::cout << "Wrote: " << matrixOrigFile << "\n";
+    std::cout << "Wrote: " << matrixReordFile << "\n";
+    std::cout << "Wrote: " << nodesFile << "\n";
+    std::cout << "Wrote: " << elementsFile << "\n";
+
+    // Cleanup GPU memory
+    cudaFree(dX); cudaFree(dY); cudaFree(dZ);
+    cudaFree(dConn); cudaFree(d_elemKe);
+    cudaFree(d_rowPtr); cudaFree(d_colIdx); cudaFree(d_vals);
+    cudaFree(d_b); cudaFree(d_x);
 
     return 0;
 }

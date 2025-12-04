@@ -1,0 +1,115 @@
+=== FEM GPU Pipeline ===
+Mesh file: CPU/bracket_3d_large.msh
+Mesh base: bracket_3d_large
+Reordering method: amd
+Material: E=200000 MPa, nu=0.3
+
+Parsed 4683 nodes, 24130 elements.
+Tet4 elements: 16604
+CSR pattern: nDOF=14052, nnz=253539
+Allocating GPU memory...
+Computing local element stiffness (GPU)...
+Assembling global CSR matrix (GPU)...
+Assembly complete.
+Solving Kx = f in reordered space...
+Timing results saved to results/amd/bracket_3d_large__amd_results.txt
+Done.
+Generating '/tmp/nsys-report-a557.qdstrm'
+[1/8] [0%                          ] bracket_3d_large__amd_nsys.nsys-rep[1/8] [0%                          ] bracket_3d_large__amd_nsys.nsys-rep[1/8] [0%                          ] bracket_3d_large__amd_nsys.nsys-rep[1/8] [8%                          ] bracket_3d_large__amd_nsys.nsys-rep[1/8] [=16%                        ] bracket_3d_large__amd_nsys.nsys-rep[1/8] [===24%                      ] bracket_3d_large__amd_nsys.nsys-rep[1/8] [=====32%                    ] bracket_3d_large__amd_nsys.nsys-rep[1/8] [========40%                 ] bracket_3d_large__amd_nsys.nsys-rep[1/8] [==========47%               ] bracket_3d_large__amd_nsys.nsys-rep[1/8] [============55%             ] bracket_3d_large__amd_nsys.nsys-rep[1/8] [==============63%           ] bracket_3d_large__amd_nsys.nsys-rep[1/8] [================71%         ] bracket_3d_large__amd_nsys.nsys-rep[1/8] [===================79%      ] bracket_3d_large__amd_nsys.nsys-rep[1/8] [====================83%     ] bracket_3d_large__amd_nsys.nsys-rep[1/8] [========================100%] bracket_3d_large__amd_nsys.nsys-rep[1/8] [========================100%] bracket_3d_large__amd_nsys.nsys-rep
+[2/8] [0%                          ] bracket_3d_large__amd_nsys.sqlite[2/8] [1%                          ] bracket_3d_large__amd_nsys.sqlite[2/8] [2%                          ] bracket_3d_large__amd_nsys.sqlite[2/8] [3%                          ] bracket_3d_large__amd_nsys.sqlite[2/8] [4%                          ] bracket_3d_large__amd_nsys.sqlite[2/8] [5%                          ] bracket_3d_large__amd_nsys.sqlite[2/8] [6%                          ] bracket_3d_large__amd_nsys.sqlite[2/8] [7%                          ] bracket_3d_large__amd_nsys.sqlite[2/8] [8%                          ] bracket_3d_large__amd_nsys.sqlite[2/8] [9%                          ] bracket_3d_large__amd_nsys.sqlite[2/8] [10%                         ] bracket_3d_large__amd_nsys.sqlite[2/8] [11%                         ] bracket_3d_large__amd_nsys.sqlite[2/8] [12%                         ] bracket_3d_large__amd_nsys.sqlite[2/8] [13%                         ] bracket_3d_large__amd_nsys.sqlite[2/8] [14%                         ] bracket_3d_large__amd_nsys.sqlite[2/8] [=15%                        ] bracket_3d_large__amd_nsys.sqlite[2/8] [=16%                        ] bracket_3d_large__amd_nsys.sqlite[2/8] [=17%                        ] bracket_3d_large__amd_nsys.sqlite[2/8] [==18%                       ] bracket_3d_large__amd_nsys.sqlite[2/8] [==19%                       ] bracket_3d_large__amd_nsys.sqlite[2/8] [==20%                       ] bracket_3d_large__amd_nsys.sqlite[2/8] [==21%                       ] bracket_3d_large__amd_nsys.sqlite[2/8] [===22%                      ] bracket_3d_large__amd_nsys.sqlite[2/8] [===23%                      ] bracket_3d_large__amd_nsys.sqlite[2/8] [===24%                      ] bracket_3d_large__amd_nsys.sqlite[2/8] [====25%                     ] bracket_3d_large__amd_nsys.sqlite[2/8] [====26%                     ] bracket_3d_large__amd_nsys.sqlite[2/8] [====27%                     ] bracket_3d_large__amd_nsys.sqlite[2/8] [====28%                     ] bracket_3d_large__amd_nsys.sqlite[2/8] [=====29%                    ] bracket_3d_large__amd_nsys.sqlite[2/8] [=====30%                    ] bracket_3d_large__amd_nsys.sqlite[2/8] [=====31%                    ] bracket_3d_large__amd_nsys.sqlite[2/8] [=====32%                    ] bracket_3d_large__amd_nsys.sqlite[2/8] [======33%                   ] bracket_3d_large__amd_nsys.sqlite[2/8] [======34%                   ] bracket_3d_large__amd_nsys.sqlite[2/8] [======35%                   ] bracket_3d_large__amd_nsys.sqlite[2/8] [=======36%                  ] bracket_3d_large__amd_nsys.sqlite[2/8] [=======37%                  ] bracket_3d_large__amd_nsys.sqlite[2/8] [=======38%                  ] bracket_3d_large__amd_nsys.sqlite[2/8] [=======39%                  ] bracket_3d_large__amd_nsys.sqlite[2/8] [========40%                 ] bracket_3d_large__amd_nsys.sqlite[2/8] [========41%                 ] bracket_3d_large__amd_nsys.sqlite[2/8] [========42%                 ] bracket_3d_large__amd_nsys.sqlite[2/8] [=========43%                ] bracket_3d_large__amd_nsys.sqlite[2/8] [=========44%                ] bracket_3d_large__amd_nsys.sqlite[2/8] [=========45%                ] bracket_3d_large__amd_nsys.sqlite[2/8] [=========46%                ] bracket_3d_large__amd_nsys.sqlite[2/8] [==========47%               ] bracket_3d_large__amd_nsys.sqlite[2/8] [==========48%               ] bracket_3d_large__amd_nsys.sqlite[2/8] [==========49%               ] bracket_3d_large__amd_nsys.sqlite[2/8] [===========50%              ] bracket_3d_large__amd_nsys.sqlite[2/8] [===========51%              ] bracket_3d_large__amd_nsys.sqlite[2/8] [===========52%              ] bracket_3d_large__amd_nsys.sqlite[2/8] [===========53%              ] bracket_3d_large__amd_nsys.sqlite[2/8] [============54%             ] bracket_3d_large__amd_nsys.sqlite[2/8] [============55%             ] bracket_3d_large__amd_nsys.sqlite[2/8] [============56%             ] bracket_3d_large__amd_nsys.sqlite[2/8] [============57%             ] bracket_3d_large__amd_nsys.sqlite[2/8] [=============58%            ] bracket_3d_large__amd_nsys.sqlite[2/8] [=============59%            ] bracket_3d_large__amd_nsys.sqlite[2/8] [=============60%            ] bracket_3d_large__amd_nsys.sqlite[2/8] [==============61%           ] bracket_3d_large__amd_nsys.sqlite[2/8] [==============62%           ] bracket_3d_large__amd_nsys.sqlite[2/8] [==============63%           ] bracket_3d_large__amd_nsys.sqlite[2/8] [==============64%           ] bracket_3d_large__amd_nsys.sqlite[2/8] [===============65%          ] bracket_3d_large__amd_nsys.sqlite[2/8] [===============66%          ] bracket_3d_large__amd_nsys.sqlite[2/8] [===============67%          ] bracket_3d_large__amd_nsys.sqlite[2/8] [================68%         ] bracket_3d_large__amd_nsys.sqlite[2/8] [================69%         ] bracket_3d_large__amd_nsys.sqlite[2/8] [================70%         ] bracket_3d_large__amd_nsys.sqlite[2/8] [================71%         ] bracket_3d_large__amd_nsys.sqlite[2/8] [=================72%        ] bracket_3d_large__amd_nsys.sqlite[2/8] [=================73%        ] bracket_3d_large__amd_nsys.sqlite[2/8] [=================74%        ] bracket_3d_large__amd_nsys.sqlite[2/8] [==================75%       ] bracket_3d_large__amd_nsys.sqlite[2/8] [==================76%       ] bracket_3d_large__amd_nsys.sqlite[2/8] [==================77%       ] bracket_3d_large__amd_nsys.sqlite[2/8] [==================78%       ] bracket_3d_large__amd_nsys.sqlite[2/8] [===================79%      ] bracket_3d_large__amd_nsys.sqlite[2/8] [===================80%      ] bracket_3d_large__amd_nsys.sqlite[2/8] [===================81%      ] bracket_3d_large__amd_nsys.sqlite[2/8] [===================82%      ] bracket_3d_large__amd_nsys.sqlite[2/8] [====================83%     ] bracket_3d_large__amd_nsys.sqlite[2/8] [====================84%     ] bracket_3d_large__amd_nsys.sqlite[2/8] [====================85%     ] bracket_3d_large__amd_nsys.sqlite[2/8] [=====================86%    ] bracket_3d_large__amd_nsys.sqlite[2/8] [=====================87%    ] bracket_3d_large__amd_nsys.sqlite[2/8] [=====================88%    ] bracket_3d_large__amd_nsys.sqlite[2/8] [=====================89%    ] bracket_3d_large__amd_nsys.sqlite[2/8] [======================90%   ] bracket_3d_large__amd_nsys.sqlite[2/8] [======================91%   ] bracket_3d_large__amd_nsys.sqlite[2/8] [======================92%   ] bracket_3d_large__amd_nsys.sqlite[2/8] [=======================93%  ] bracket_3d_large__amd_nsys.sqlite[2/8] [=======================94%  ] bracket_3d_large__amd_nsys.sqlite[2/8] [=======================95%  ] bracket_3d_large__amd_nsys.sqlite[2/8] [=======================96%  ] bracket_3d_large__amd_nsys.sqlite[2/8] [========================97% ] bracket_3d_large__amd_nsys.sqlite[2/8] [========================98% ] bracket_3d_large__amd_nsys.sqlite[2/8] [========================99% ] bracket_3d_large__amd_nsys.sqlite[2/8] [========================100%] bracket_3d_large__amd_nsys.sqlite[2/8] [========================100%] bracket_3d_large__amd_nsys.sqlite
+[3/8] Executing 'nvtx_sum' stats report
+
+ Time (%)  Total Time (ns)  Instances     Avg (ns)         Med (ns)        Min (ns)       Max (ns)     StdDev (ns)   Style     Range  
+ --------  ---------------  ---------  ---------------  ---------------  -------------  -------------  -----------  -------  ---------
+    100.0    1,806,170,507          1  1,806,170,507.0  1,806,170,507.0  1,806,170,507  1,806,170,507          0.0  PushPop  CG_Solver
+
+[4/8] Executing 'osrt_sum' stats report
+
+ Time (%)  Total Time (ns)  Num Calls    Avg (ns)      Med (ns)     Min (ns)   Max (ns)    StdDev (ns)            Name         
+ --------  ---------------  ---------  ------------  -------------  --------  -----------  ------------  ----------------------
+     92.2    2,200,159,447         33  66,671,498.4  100,210,232.0     4,749  100,246,549  44,045,797.0  poll                  
+      7.1      170,399,051        605     281,651.3       15,645.0     3,073   16,932,880     956,209.9  ioctl                 
+      0.1        2,390,807         31      77,122.8        8,940.0     3,631      893,969     201,317.5  fopen                 
+      0.1        2,104,735         10     210,473.5      234,945.5   145,270      265,117      46,722.1  sem_timedwait         
+      0.1        1,994,387         67      29,767.0        3,073.0     2,793      578,286     110,044.2  fcntl                 
+      0.1        1,635,962          2     817,981.0      817,981.0    88,000    1,547,962   1,032,349.0  fopen64               
+      0.1        1,595,177         29      55,006.1        8,940.0     7,822    1,146,515     210,447.8  mmap64                
+      0.0        1,102,655        114       9,672.4        9,778.0     3,352       30,730       3,385.9  read                  
+      0.0        1,085,612         12      90,467.7        9,638.0     2,794      609,574     196,730.5  fread                 
+      0.0          772,723        256       3,018.4        2,793.0     2,514       37,715       2,575.5  pthread_mutex_trylock 
+      0.0          712,940          2     356,470.0      356,470.0   256,178      456,762     141,834.3  pthread_rwlock_wrlock 
+      0.0          613,485          4     153,371.3      124,178.0   110,907      254,222      67,656.0  pthread_create        
+      0.0          562,643         27      20,838.6        4,749.0     3,632      412,622      78,365.2  fclose                
+      0.0          378,541          4      94,635.3        7,962.5     5,307      357,309     175,121.2  munmap                
+      0.0          351,440         48       7,321.7        6,984.0     4,749       16,482       1,848.4  open64                
+      0.0          239,136          1     239,136.0      239,136.0   239,136      239,136           0.0  pthread_cond_wait     
+      0.0          216,226         13      16,632.8       15,365.0     3,352       50,286      10,889.8  write                 
+      0.0          146,108         14      10,436.3        6,285.5     5,587       36,318       8,201.3  mmap                  
+      0.0          131,303         31       4,235.6        2,515.0     2,514       51,403       8,755.6  fgets                 
+      0.0          119,847         39       3,073.0        2,794.0     2,514        5,866         597.6  fwrite                
+      0.0           68,726         24       2,863.6        2,794.0     2,514        3,912         430.1  fflush                
+      0.0           50,007          7       7,143.9        6,705.0     4,190        9,219       1,900.6  open                  
+      0.0           24,583          3       8,194.3        9,498.0     5,028       10,057       2,756.3  pipe2                 
+      0.0           24,026          8       3,003.3        3,073.0     2,794        3,073         129.2  dup                   
+      0.0           20,672          2      10,336.0       10,336.0     8,101       12,571       3,160.8  socket                
+      0.0           17,600          2       8,800.0        8,800.0     3,632       13,968       7,308.7  pthread_cond_broadcast
+      0.0           12,292          1      12,292.0       12,292.0    12,292       12,292           0.0  connect               
+      0.0            6,425          1       6,425.0        6,425.0     6,425        6,425           0.0  bind                  
+      0.0            3,073          1       3,073.0        3,073.0     3,073        3,073           0.0  listen                
+
+[5/8] Executing 'cuda_api_sum' stats report
+
+ Time (%)  Total Time (ns)  Num Calls   Avg (ns)     Med (ns)    Min (ns)    Max (ns)    StdDev (ns)                  Name               
+ --------  ---------------  ---------  -----------  -----------  ---------  -----------  ------------  ----------------------------------
+     33.9      360,887,752     50,006      7,216.9      6,705.0      5,866    3,776,458      26,335.4  cudaLaunchKernel                  
+     20.8      221,305,481     10,001     22,128.3     21,511.0     20,114       58,946       3,187.1  cudaMemcpyAsync                   
+     15.5      164,667,872         17  9,686,345.4     12,571.0      9,498  163,620,811  39,668,207.5  cudaMalloc                        
+     15.1      160,988,511     50,005      3,219.4      3,073.0      2,793      241,372       1,759.8  cudaStreamGetCaptureInfo_v2_v11030
+      9.0       95,607,687     10,001      9,559.8      9,219.0      8,939      275,733       3,514.1  cudaStreamSynchronize             
+      3.6       38,497,898     10,001      3,849.4      3,632.0      3,352      500,063       5,209.8  cudaEventRecord                   
+      1.3       14,283,379         20    714,169.0     21,511.0      9,778   10,073,069   2,256,961.0  cudaFree                          
+      0.3        3,432,264      1,156      2,969.1      2,794.0      2,793       30,171       1,257.3  cuGetProcAddress_v2               
+      0.2        1,745,473          1  1,745,473.0  1,745,473.0  1,745,473    1,745,473           0.0  cudaGetDeviceProperties_v2_v12000 
+      0.1        1,210,211         15     80,680.7     46,095.0     14,527      409,829     102,873.8  cudaMemcpy                        
+      0.1          692,545          7     98,935.0     11,733.0      9,498      468,775     173,276.4  cudaDeviceSynchronize             
+      0.0           73,471         18      4,081.7      3,352.0      3,073       17,321       3,316.9  cudaEventDestroy                  
+      0.0           63,698         18      3,538.8      3,353.0      3,073        5,308         649.8  cudaEventCreateWithFlags          
+      0.0           35,759          1     35,759.0     35,759.0     35,759       35,759           0.0  cudaMemset                        
+      0.0           12,850          4      3,212.5      2,793.5      2,793        4,470         838.3  cuModuleGetLoadingMode            
+      0.0           11,174          3      3,724.7      3,632.0      3,631        3,911         161.4  cuInit                            
+      0.0           10,895          1     10,895.0     10,895.0     10,895       10,895           0.0  cudaEventQuery                    
+
+[6/8] Executing 'cuda_gpu_kern_sum' stats report
+
+ Time (%)  Total Time (ns)  Instances  Avg (ns)   Med (ns)   Min (ns)  Max (ns)  StdDev (ns)                                                  Name                                                
+ --------  ---------------  ---------  ---------  ---------  --------  --------  -----------  ----------------------------------------------------------------------------------------------------
+     26.9       75,091,133      5,001   15,015.2   15,008.0    13,760    15,488        133.2  void cusparse::csrmv_v3_kernel<(bool)0, int, int, double, double, double, double, void>(cusparse::K…
+     20.9       58,331,931     15,000    3,888.8    3,904.0     3,776     4,032         54.3  void axpy_kernel_val<double, double>(cublasAxpyParamsVal<T1, T1, T2>)                               
+     17.9       49,938,645     10,001    4,993.4    4,992.0     4,864     5,376         65.9  void dot_kernel<double, (int)128, (int)0, cublasDotParams<cublasGemvTensor<const double>, cublasGem…
+     14.0       39,223,380      5,001    7,843.1    7,776.0     7,712     9,312        102.5  void cusparse::csrmv_v3_partition_kernel<(int)256, cusparse::VectorScalarMultiplyPolicy, int, int, …
+     13.4       37,449,956     10,001    3,744.6    3,744.0     3,552     3,937        105.0  void reduce_1Block_kernel<double, (int)128, (int)7, cublasGemvTensorStridedBatched<double>, cublasG…
+      6.7       18,582,946      5,000    3,716.6    3,712.0     3,584     3,808         39.0  void scal_kernel_val<double, double>(cublasScalParamsVal<T1, T2>)                                   
+      0.2          464,225          1  464,225.0  464,225.0   464,225   464,225          0.0  assembleCSR_atomic_kernel(const double *, const int *, const int *, const int *, double *, int, int…
+      0.1          166,657          1  166,657.0  166,657.0   166,657   166,657          0.0  kernelKe_Tet4_3D(const double *, const double *, const double *, const int *, double, double, doubl…
+
+[7/8] Executing 'cuda_gpu_mem_time_sum' stats report
+
+ Time (%)  Total Time (ns)  Count   Avg (ns)  Med (ns)  Min (ns)  Max (ns)  StdDev (ns)      Operation     
+ --------  ---------------  ------  --------  --------  --------  --------  -----------  ------------------
+     98.6       23,542,974  10,003   2,353.6   2,336.0     2,304   198,241      1,974.4  [CUDA memcpy DtoH]
+      1.3          315,392      11  28,672.0   9,024.0     5,728   126,560     38,213.1  [CUDA memcpy HtoD]
+      0.0            8,096       2   4,048.0   4,048.0     4,000     4,096         67.9  [CUDA memcpy DtoD]
+      0.0            5,568       1   5,568.0   5,568.0     5,568     5,568          0.0  [CUDA memset]     
+
+[8/8] Executing 'cuda_gpu_mem_size_sum' stats report
+
+ Total (MB)  Count   Avg (MB)  Med (MB)  Min (MB)  Max (MB)  StdDev (MB)      Operation     
+ ----------  ------  --------  --------  --------  --------  -----------  ------------------
+      4.772      11     0.434     0.112     0.037     2.028        0.649  [CUDA memcpy HtoD]
+      2.221  10,003     0.000     0.000     0.000     2.028        0.020  [CUDA memcpy DtoH]
+      2.028       1     2.028     2.028     2.028     2.028        0.000  [CUDA memset]     
+      0.225       2     0.112     0.112     0.112     0.112        0.000  [CUDA memcpy DtoD]
+
+Generated:
+    /work/09424/jiwoooop/ls6/Multithreaded_Final/a100/bracket_3d_large_profile_results/bracket_3d_large__amd_nsys.nsys-rep
+    /work/09424/jiwoooop/ls6/Multithreaded_Final/a100/bracket_3d_large_profile_results/bracket_3d_large__amd_nsys.sqlite

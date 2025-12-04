@@ -1,0 +1,8 @@
+==PROF== Connected to process 103258 (/work/09424/jiwoooop/ls6/Multithreaded_Final/fem_assembly)
+==ERROR== Failed to find metric achieved_occupancy
+
+==ERROR== Failed to profile "kernelKe_Tet4_3D" in process 103258
+==PROF== Trying to shutdown target application
+==ERROR== The application returned an error code (9).
+==ERROR== An error occurred while trying to profile.
+==WARNING== No kernels were profiled.
