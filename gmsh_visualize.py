@@ -52,17 +52,21 @@ def parse_gmsh_nodes(msh_file):
             i += 1
             num_entity_blocks, num_nodes, min_node_tag, max_node_tag = map(int, lines[i].strip().split())
             i += 1
+            node_ids_list = []
             for _ in range(num_entity_blocks):
                 entity_dim, entity_tag, parametric, num_nodes_in_block = map(int, lines[i].strip().split())
                 i += 1
+                # Read node IDs for this block
+                block_node_ids = []
                 for _ in range(num_nodes_in_block):
                     node_id = int(lines[i].strip())
+                    block_node_ids.append(node_id)
                     i += 1
-                for _ in range(num_nodes_in_block):
+                # Read coordinates for this block (in same order as node IDs)
+                for j in range(num_nodes_in_block):
                     parts = lines[i].strip().split()
                     x, y, z = float(parts[0]), float(parts[1]), float(parts[2])
-                    # In v4, node IDs are sequential starting from entity_tag
-                    # We need to track the actual node IDs
+                    node_id = block_node_ids[j]
                     nodes[node_id] = (x, y, z)
                     i += 1
             continue
@@ -119,7 +123,7 @@ def load_solution_vector(solution_file):
 def create_gmsh_postprocessing(msh_file, solution_file, output_file, field_name='Displacement_Magnitude'):
     """Create Gmsh .msh file with displacement post-processing data"""
     
-    # Parse original mesh
+    # Parse original mesh to get node mapping
     print(f"Parsing mesh file: {msh_file}")
     nodes, version = parse_gmsh_nodes(msh_file)
     print(f"  Found {len(nodes)} nodes")
@@ -134,110 +138,89 @@ def create_gmsh_postprocessing(msh_file, solution_file, output_file, field_name=
     node_displacements = {}  # node_id -> (ux, uy, uz)
     node_magnitudes = {}     # node_id -> magnitude
     
-    # Get sorted node IDs
+    # Get sorted node IDs (by their index in the solution vector, not by Gmsh tag)
+    # The solution vector uses contiguous indices 0..nNodes-1
+    # We need to map these to actual Gmsh node tags
     sorted_node_ids = sorted(nodes.keys())
     
-    for node_idx, node_id in enumerate(sorted_node_ids):
-        dof_base = node_idx * ndof_per_node
-        if dof_base + 2 < len(displacements):
-            ux = displacements[dof_base]
-            uy = displacements[dof_base + 1]
-            uz = displacements[dof_base + 2]
-            node_displacements[node_id] = (ux, uy, uz)
-            magnitude = np.sqrt(ux*ux + uy*uy + uz*uz)
-            node_magnitudes[node_id] = magnitude
-        else:
-            node_displacements[node_id] = (0.0, 0.0, 0.0)
-            node_magnitudes[node_id] = 0.0
+    # Check if we need to map by index or by tag
+    # If nNodes matches len(nodes), assume 1:1 mapping by sorted order
+    if nNodes == len(nodes):
+        for node_idx, node_id in enumerate(sorted_node_ids):
+            dof_base = node_idx * ndof_per_node
+            if dof_base + 2 < len(displacements):
+                ux = displacements[dof_base]
+                uy = displacements[dof_base + 1]
+                uz = displacements[dof_base + 2]
+                node_displacements[node_id] = (ux, uy, uz)
+                magnitude = np.sqrt(ux*ux + uy*uy + uz*uz)
+                node_magnitudes[node_id] = magnitude
+            else:
+                node_displacements[node_id] = (0.0, 0.0, 0.0)
+                node_magnitudes[node_id] = 0.0
+    else:
+        print(f"  WARNING: Node count mismatch: solution has {nNodes}, mesh has {len(nodes)}")
+        # Try to map by assuming node IDs start from 1 and are contiguous
+        for node_idx in range(min(nNodes, len(nodes))):
+            node_id = sorted_node_ids[node_idx]
+            dof_base = node_idx * ndof_per_node
+            if dof_base + 2 < len(displacements):
+                ux = displacements[dof_base]
+                uy = displacements[dof_base + 1]
+                uz = displacements[dof_base + 2]
+                node_displacements[node_id] = (ux, uy, uz)
+                magnitude = np.sqrt(ux*ux + uy*uy + uz*uz)
+                node_magnitudes[node_id] = magnitude
     
-    # Read original mesh file
-    with open(msh_file, 'r') as f:
-        mesh_content = f.read()
-    
-    # Write new mesh file with post-processing data
+    # Copy entire original mesh file and append post-processing data
     print(f"Writing Gmsh file with displacements: {output_file}")
-    with open(output_file, 'w') as f:
-        # Write mesh format header
-        if version == 4:
-            f.write("$MeshFormat\n")
-            f.write("4.1 0 8\n")
-            f.write("$EndMeshFormat\n")
-        else:
-            f.write("$MeshFormat\n")
-            f.write("2.2 0 8\n")
-            f.write("$EndMeshFormat\n")
-        
-        # Write nodes section
-        if version == 4:
-            f.write("$Nodes\n")
-            f.write(f"1 {len(nodes)} 1 {len(nodes)}\n")  # 1 entity block, num_nodes, min_tag, max_tag
-            f.write(f"3 0 0 {len(nodes)}\n")  # dim, tag, parametric, num_nodes_in_block
-            for node_id in sorted_node_ids:
-                f.write(f"{node_id}\n")
-            for node_id in sorted_node_ids:
-                x, y, z = nodes[node_id]
-                f.write(f"{x:.15e} {y:.15e} {z:.15e}\n")
-            f.write("$EndNodes\n")
-        else:
-            f.write("$Nodes\n")
-            f.write(f"{len(nodes)}\n")
-            for node_id in sorted_node_ids:
-                x, y, z = nodes[node_id]
-                f.write(f"{node_id} {x:.15e} {y:.15e} {z:.15e}\n")
-            f.write("$EndNodes\n")
-        
-        # Write elements section (copy from original)
-        in_elements = False
-        elements_written = False
-        with open(msh_file, 'r') as orig:
+    with open(msh_file, 'r') as orig:
+        with open(output_file, 'w') as f:
+            # Copy everything up to and including $EndElements
+            copy_mode = True
             for line in orig:
-                if line.strip() == "$Elements":
-                    in_elements = True
+                if copy_mode:
                     f.write(line)
-                    continue
-                if line.strip() == "$EndElements":
-                    in_elements = False
-                    elements_written = True
-                    f.write(line)
-                    break
-                if in_elements:
-                    f.write(line)
-        
-        # Write post-processing view data
-        f.write("$NodeData\n")
-        f.write("1\n")  # Number of string tags
-        f.write(f'"{field_name}"\n')  # Field name
-        f.write("1\n")  # Number of real tags
-        f.write("0.0\n")  # Time value
-        f.write("3\n")  # Number of integer tags
-        f.write("0\n")  # Time step index
-        f.write("1\n")  # Number of components (scalar)
-        f.write(f"{len(nodes)}\n")  # Number of nodes
-        
-        # Write displacement magnitude for each node
-        for node_id in sorted_node_ids:
-            magnitude = node_magnitudes.get(node_id, 0.0)
-            f.write(f"{node_id} {magnitude:.15e}\n")
-        
-        f.write("$EndNodeData\n")
-        
-        # Also write vector displacement field
-        f.write("$NodeData\n")
-        f.write("1\n")  # Number of string tags
-        f.write('"Displacement_Vector"\n')  # Field name
-        f.write("1\n")  # Number of real tags
-        f.write("0.0\n")  # Time value
-        f.write("3\n")  # Number of integer tags
-        f.write("0\n")  # Time step index
-        f.write("3\n")  # Number of components (vector: x, y, z)
-        f.write(f"{len(nodes)}\n")  # Number of nodes
-        
-        # Write displacement vector for each node
-        for node_id in sorted_node_ids:
-            ux, uy, uz = node_displacements.get(node_id, (0.0, 0.0, 0.0))
-            f.write(f"{node_id} {ux:.15e} {uy:.15e} {uz:.15e}\n")
-        
-        f.write("$EndNodeData\n")
+                    # Stop copying after $EndElements
+                    if line.strip() == "$EndElements":
+                        copy_mode = False
+                        break
+            
+            # Write post-processing view data
+            f.write("$NodeData\n")
+            f.write("1\n")  # Number of string tags
+            f.write(f'"{field_name}"\n')  # Field name
+            f.write("1\n")  # Number of real tags
+            f.write("0.0\n")  # Time value
+            f.write("3\n")  # Number of integer tags
+            f.write("0\n")  # Time step index
+            f.write("1\n")  # Number of components (scalar)
+            f.write(f"{len(sorted_node_ids)}\n")  # Number of nodes
+            
+            # Write displacement magnitude for each node (in sorted order)
+            for node_id in sorted_node_ids:
+                magnitude = node_magnitudes.get(node_id, 0.0)
+                f.write(f"{node_id} {magnitude:.15e}\n")
+            
+            f.write("$EndNodeData\n")
+            
+            # Also write vector displacement field
+            f.write("$NodeData\n")
+            f.write("1\n")  # Number of string tags
+            f.write('"Displacement_Vector"\n')  # Field name
+            f.write("1\n")  # Number of real tags
+            f.write("0.0\n")  # Time value
+            f.write("3\n")  # Number of integer tags
+            f.write("0\n")  # Time step index
+            f.write("3\n")  # Number of components (vector: x, y, z)
+            f.write(f"{len(sorted_node_ids)}\n")  # Number of nodes
+            
+            # Write displacement vector for each node (in sorted order)
+            for node_id in sorted_node_ids:
+                ux, uy, uz = node_displacements.get(node_id, (0.0, 0.0, 0.0))
+                f.write(f"{node_id} {ux:.15e} {uy:.15e} {uz:.15e}\n")
+            
+            f.write("$EndNodeData\n")
     
     print(f"✓ Successfully created: {output_file}")
     print(f"  Fields: {field_name} (scalar), Displacement_Vector (vector)")
