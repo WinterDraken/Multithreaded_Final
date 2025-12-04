@@ -122,6 +122,11 @@ int main(int argc, char* argv[])
     std::string resultFile =
         "results/" + methodTag + "/" +
         meshBase + "__" + methodTag + "__" + solverNorm + "__" + ts.str() + ".txt";
+    
+    // Solution vector file (without timestamp, for visualization)
+    std::string solutionFile =
+        "results/" + methodTag + "/" +
+        meshBase + "__" + methodTag + "_solution.txt";
 
     // ---------------- Mesh Parsing ----------------
     std::vector<Node> nodes;
@@ -379,6 +384,20 @@ int main(int argc, char* argv[])
     tf.close();
 
     std::cout << "Wrote: " << resultFile << "\n";
+
+    // ---------------- Save solution vector ----------------
+    std::ofstream sf(solutionFile);
+    sf << "# Solution vector (displacements) for mesh: " << meshBase << ", method: " << methodTag << "\n";
+    sf << "# Format: DOF_index displacement_value\n";
+    sf << "# nDOF: " << nDOF << "\n";
+    sf << "# nNodes: " << nNodes << "\n";
+    sf << "# ndof_per_node: " << ndof_per_node << "\n";
+    for (int i = 0; i < nDOF; ++i) {
+        sf << i << " " << std::scientific << std::setprecision(15) << x_orig[i] << "\n";
+    }
+    sf.close();
+
+    std::cout << "Wrote: " << solutionFile << "\n";
 
     // Free remaining device buffers
     CUDA_CHECK(cudaFree(d_rowPtr));

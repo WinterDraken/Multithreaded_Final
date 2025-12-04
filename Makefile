@@ -52,6 +52,9 @@ $(MAIN_OBJECT): $(MAIN_SOURCE)
 clean:
 	rm -f $(TARGET) $(CPU_OBJECTS) $(GPU_OBJECTS) $(MAIN_OBJECT)
 
+tidy:
+	rm -f $(CPU_OBJECTS) $(GPU_OBJECTS) $(MAIN_OBJECT)
+
 # Phony targets
 .PHONY: all clean
 
