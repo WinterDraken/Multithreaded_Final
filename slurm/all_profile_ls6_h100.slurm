@@ -12,7 +12,7 @@
 
 # ============================================================================
 # FEM GPU Solver: All Meshes Profiling (H100)
-# Runs nsys profiling for each mesh and method combination
+# Runs nsys and ncu profiling for each mesh and method combination
 # ============================================================================
 
 set -e
@@ -89,7 +89,9 @@ get_mesh_base() {
 # Check tool availability
 echo "=== Checking Profiling Tools ==="
 NSYS_EXISTS=true
+NCU_EXISTS=true
 command -v nsys >/dev/null 2>&1 || NSYS_EXISTS=false
+command -v ncu >/dev/null 2>&1 || NCU_EXISTS=false
 
 if $NSYS_EXISTS; then
     echo "✓ nsys found: $(which nsys)"
@@ -97,6 +99,13 @@ if $NSYS_EXISTS; then
 else
     echo "✗ nsys not found - profiling will be skipped"
     exit 1
+fi
+
+if $NCU_EXISTS; then
+    echo "✓ ncu found: $(which ncu)"
+    ncu --version
+else
+    echo "✗ ncu not found - ncu profiling will be skipped"
 fi
 echo ""
 
@@ -108,7 +117,7 @@ echo "=========================================="
 echo "  PHASE 1: Running Profiling"
 echo "  Meshes: ${#MESH_FILES[@]} files"
 echo "  Methods: ${METHODS[@]}"
-echo "  Tool: nsys"
+echo "  Tools: nsys, ncu"
 echo "=========================================="
 echo ""
 
@@ -133,25 +142,77 @@ for mesh_file in "${MESH_FILES[@]}"; do
         
         profile_prefix="$PROFILE_DIR/${mesh_base}__${method}"
         
-        # Run nsys profiling
+        # Run nsys profiling (NVTX markers will help identify CG_Solver region in UI)
         if $NSYS_EXISTS; then
             echo "  Running nsys profile..."
             nsys profile \
-                --output="$profile_prefix" \
+                --output="${profile_prefix}_nsys" \
                 --stats=true \
                 --trace=cuda,nvtx \
-                ./fem_assembly "$mesh_file" "$method" > /dev/null 2>&1
+                ./fem_assembly "$mesh_file" "$method" > "${profile_prefix}_nsys_stdout.log" 2> "${profile_prefix}_nsys_stderr.log" || true
             
-            if [ -f "${profile_prefix}.nsys-rep" ]; then
-                echo "    ✓ nsys report generated: ${profile_prefix}.nsys-rep"
+            if [ -f "${profile_prefix}_nsys.nsys-rep" ]; then
+                echo "    ✓ nsys report generated: ${profile_prefix}_nsys.nsys-rep"
                 # Get file size for info
-                file_size=$(du -h "${profile_prefix}.nsys-rep" | awk '{print $1}')
+                file_size=$(du -h "${profile_prefix}_nsys.nsys-rep" | awk '{print $1}')
                 echo "    File size: $file_size"
             else
-                echo "    ✗ nsys report not found (may have failed)"
+                echo "    ✗ nsys report not found (check ${profile_prefix}_nsys_stderr.log)"
+            fi
+            
+            # Show nsys errors if any
+            if [ -f "${profile_prefix}_nsys_stderr.log" ] && [ -s "${profile_prefix}_nsys_stderr.log" ]; then
+                echo "    nsys stderr (last 10 lines):"
+                tail -10 "${profile_prefix}_nsys_stderr.log" | sed 's/^/      /'
             fi
         else
             echo "  Skipping nsys profiling (tool not available)"
+        fi
+        
+        # Run ncu profiling (profiles all kernels, NVTX markers help identify solver region)
+        if $NCU_EXISTS; then
+            echo "  Running ncu profile..."
+            # Use basic metric set (compatible across GPU architectures)
+            # Includes occupancy, speed-of-light metrics, and launch stats
+            # Redirect application stdout/stderr separately, capture ncu CSV output
+            ncu --set basic \
+                --target-processes all \
+                --csv \
+                --log-file="${profile_prefix}_ncu.log" \
+                --force-overwrite \
+                ./fem_assembly "$mesh_file" "$method" > "${profile_prefix}_ncu_metrics.csv" 2> "${profile_prefix}_ncu_stderr.log" || true
+            
+            # If CSV contains application output (not metrics), it means ncu didn't profile any kernels
+            # Check if file starts with CSV headers (contains "Kernel Name" or "ID")
+            if [ -f "${profile_prefix}_ncu_metrics.csv" ] && [ -s "${profile_prefix}_ncu_metrics.csv" ]; then
+                if grep -q "Kernel Name\|ID," "${profile_prefix}_ncu_metrics.csv" 2>/dev/null; then
+                    echo "    ✓ ncu metrics generated: ${profile_prefix}_ncu_metrics.csv"
+                    file_size=$(du -h "${profile_prefix}_ncu_metrics.csv" | awk '{print $1}')
+                    echo "    File size: $file_size"
+                else
+                    echo "    ⚠ ncu CSV contains application output, not metrics (no kernels profiled)"
+                    echo "    Moving application output to separate file..."
+                    mv "${profile_prefix}_ncu_metrics.csv" "${profile_prefix}_app_output.log" 2>/dev/null || true
+                    echo "    Check ${profile_prefix}_ncu.log and ${profile_prefix}_ncu_stderr.log for details"
+                fi
+            else
+                echo "    ✗ ncu metrics file not found or empty (check ${profile_prefix}_ncu_stderr.log)"
+            fi
+            
+            # Show ncu errors/warnings if any
+            if [ -f "${profile_prefix}_ncu_stderr.log" ] && [ -s "${profile_prefix}_ncu_stderr.log" ]; then
+                echo "    ncu stderr (last 10 lines):"
+                tail -10 "${profile_prefix}_ncu_stderr.log" | sed 's/^/      /'
+            fi
+            if [ -f "${profile_prefix}_ncu.log" ] && [ -s "${profile_prefix}_ncu.log" ]; then
+                # Check for warnings about no kernels profiled
+                if grep -q "No kernels were profiled\|WARNING" "${profile_prefix}_ncu.log" 2>/dev/null; then
+                    echo "    ncu log warnings (last 5 lines):"
+                    grep -i "warning\|error\|no kernels" "${profile_prefix}_ncu.log" | tail -5 | sed 's/^/      /'
+                fi
+            fi
+        else
+            echo "  Skipping ncu profiling (tool not available)"
         fi
         
         echo ""
@@ -174,31 +235,39 @@ echo "  Profiling Summary"
 echo "=========================================="
 echo ""
 
-# Count nsys reports for each mesh
-total_reports=0
+# Count reports for each mesh
+total_nsys=0
+total_ncu=0
 for mesh_file in "${MESH_FILES[@]}"; do
     mesh_base=$(get_mesh_base "$mesh_file")
     PROFILE_DIR="${mesh_base}_profile_results_h100"
-    report_count=$(ls -1 $PROFILE_DIR/*.nsys-rep 2>/dev/null | wc -l)
-    total_reports=$((total_reports + report_count))
-    echo "  $mesh_base: $report_count nsys report(s) in $PROFILE_DIR/"
+    nsys_count=$(ls -1 $PROFILE_DIR/*_nsys.nsys-rep 2>/dev/null | wc -l)
+    ncu_count=$(ls -1 $PROFILE_DIR/*_ncu_metrics.csv 2>/dev/null | wc -l)
+    total_nsys=$((total_nsys + nsys_count))
+    total_ncu=$((total_ncu + ncu_count))
+    echo "  $mesh_base: $nsys_count nsys report(s), $ncu_count ncu metric file(s) in $PROFILE_DIR/"
 done
 
 echo ""
-echo "Total nsys reports generated: $total_reports"
+echo "Total reports generated:"
+echo "  - nsys: $total_nsys"
+echo "  - ncu: $total_ncu"
 echo ""
 echo "Results structure:"
-echo "  - Profile reports: {mesh}_profile_results_h100/{mesh}__{method}.nsys-rep"
+echo "  - nsys reports: {mesh}_profile_results_h100/{mesh}__{method}_nsys.nsys-rep"
+echo "  - ncu metrics: {mesh}_profile_results_h100/{mesh}__{method}_ncu_metrics.csv"
 echo ""
-echo "To view profiles:"
-echo "  nsys-ui {mesh}_profile_results_h100/*.nsys-rep"
+echo "To view nsys profiles:"
+echo "  nsys-ui {mesh}_profile_results_h100/*_nsys.nsys-rep"
 echo "  (or download .nsys-rep files and open with Nsight Systems)"
 echo ""
-echo "To extract statistics:"
+echo "To extract nsys statistics:"
 for mesh_file in "${MESH_FILES[@]}"; do
     mesh_base=$(get_mesh_base "$mesh_file")
     PROFILE_DIR="${mesh_base}_profile_results_h100"
-    echo "  nsys stats --report gpukernsum $PROFILE_DIR/*.nsys-rep"
+    echo "  nsys stats --report gpukernsum $PROFILE_DIR/*_nsys.nsys-rep"
 done
+echo ""
+echo "Note: Profiling is focused on the CG_Solver region (matrix solver only)"
 echo ""
 
