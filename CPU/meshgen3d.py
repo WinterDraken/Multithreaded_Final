@@ -113,6 +113,16 @@ if __name__ == "__main__":
             "model_name": "L_bracket_3D"
         },
         {
+            "name": "bracket_3d_large_coarse",
+            # Same geometry as large, slightly coarser mesh
+            "leg1": 200.0,
+            "leg2": 200.0,
+            "web": 12.0,
+            "mesh_size": 4.8,  # slightly larger element size -> fewer elements
+            "extrude_thickness": 50.0,
+            "model_name": "L_bracket_3D_large_coarse"
+        },
+        {
             "name": "bracket_3d_large",
             "leg1": 200.0,
             "leg2": 200.0,
@@ -120,6 +130,26 @@ if __name__ == "__main__":
             "mesh_size": 4.0,  # Medium mesh
             "extrude_thickness": 50.0,
             "model_name": "L_bracket_3D_large"
+        },
+        {
+            "name": "bracket_3d_large_fine",
+            # Same geometry as large, slightly finer mesh
+            "leg1": 200.0,
+            "leg2": 200.0,
+            "web": 12.0,
+            "mesh_size": 3.3,  # smaller element size -> more elements, but < xlarge
+            "extrude_thickness": 50.0,
+            "model_name": "L_bracket_3D_large_fine"
+        },
+                {
+            "name": "bracket_3d_large_ultrafine",
+            # Same geometry as large, even finer mesh
+            "leg1": 200.0,
+            "leg2": 200.0,
+            "web": 12.0,
+            "mesh_size": 2.8,  # finer than 3.3, still coarser than the huge ones
+            "extrude_thickness": 50.0,
+            "model_name": "L_bracket_3D_large_ultrafine"
         },
         {
             "name": "bracket_3d_xlarge",
@@ -158,6 +188,7 @@ if __name__ == "__main__":
             "model_name": "L_bracket_3D_xxxxlarge"
         }
     ]
+
     
     print("Generating all 6 3D meshes...")
     print("=" * 60)
