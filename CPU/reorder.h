@@ -6,7 +6,8 @@
 enum class ReorderMethod {
     NONE,
     RCM,
-    AMD
+    AMD,
+    COLAMD
 };
 
 // Parse method string ("none", "rcm", "amd"), default = RCM on unknown
@@ -26,6 +27,14 @@ std::vector<int> reverseCuthillMcKee(
 // crude fill-in degree updates, no external libraries).
 // Returns perm[new_index] = old_index
 std::vector<int> approximateAMD(
+    int n,
+    const std::vector<int>& row_ptr,
+    const std::vector<int>& col_ind);
+
+// Column Approximate Minimum Degree (COLAMD) permutation.
+// Works on column structure to minimize fill-in during factorization.
+// Returns perm[new_index] = old_index
+std::vector<int> columnApproximateMinimumDegree(
     int n,
     const std::vector<int>& row_ptr,
     const std::vector<int>& col_ind);

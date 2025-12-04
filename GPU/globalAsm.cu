@@ -1,8 +1,7 @@
-// globalAsm.cu
+// GPU/globalAsm.cu
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
 #include <cstdio>
-
 
 // Small helpers
 
@@ -13,15 +12,15 @@ int csr_find_pos(const int* __restrict__ rowPtr,
                  int r, int c)
 {
     int lo = rowPtr[r];
-    int hi = rowPtr[r+1] - 1;
+    int hi = rowPtr[r + 1] - 1;
     while (lo <= hi) {
         int mid = (lo + hi) >> 1;
         int cc  = colIdx[mid];
-        if (cc < c)      lo = mid + 1;
+        if      (cc < c) lo = mid + 1;
         else if (cc > c) hi = mid - 1;
         else             return mid;  // found
     }
-    return -1; // not found (shouldn't happen if CSR pattern was built correctly)
+    return -1; // not found (should not happen if pattern is correct)
 }
 
 // Map (local dof index) -> (global dof index) for 3D, ndof_per_node = 3
@@ -36,24 +35,24 @@ int global_dof(int global_node, int d, int ndof_per_node)
 // Ke is (nen*ndof) x (nen*ndof)
 __global__
 void assembleCSR_atomic_kernel(
-    const double* __restrict__ elemKe,   // [nElem * (nen*ndof)^2]
-    const int*    __restrict__ elem_conn,// [nElem * nen] (global node IDs)
-    const int*    __restrict__ rowPtr,   // CSR row offsets for GLOBAL DOFs
-    const int*    __restrict__ colIdx,   // CSR col indices for GLOBAL DOFs
-    double*       __restrict__ values,   // CSR values (initialized to 0)
+    const double* __restrict__ elemKe,      // [nElem * (nen*ndof)^2]
+    const int*    __restrict__ elem_conn,   // [nElem * nen] (global node IDs)
+    const int*    __restrict__ rowPtr,      // CSR row offsets for GLOBAL DOFs (permuted)
+    const int*    __restrict__ colIdx,      // CSR col indices for GLOBAL DOFs (permuted)
+    double*       __restrict__ values,      // CSR values (initialized to 0)
+    const int*    __restrict__ dofOld2New,  // map old_dof -> new_dof
     int nElem,
-    int nen,              // nodes per element (Tet4 -> 4)
-    int ndof_per_node,    // 3 for 3D elasticity
-    bool symmetric_upper) // if CSR stores only upper triangle
+    int nen,               // nodes per element (Tet4 -> 4)
+    int ndof_per_node,     // 3 for 3D elasticity
+    bool symmetric_upper)  // if CSR stores only upper triangle
 {
     int e = blockIdx.x * blockDim.x + threadIdx.x;
     if (e >= nElem) return;
 
-    const int ndofe = nen * ndof_per_node;     // element DOFs (Tet4,3D) = 12
-    const int KeBase = e * (ndofe * ndofe);    // row-major block for element e
+    const int ndofe  = nen * ndof_per_node;   // element DOFs (Tet4,3D) = 12
+    const int KeBase = e * (ndofe * ndofe);   // row-major block for element e
 
     // Load element connectivity (global node IDs)
-    // Keep in registers for reuse
     int gnode[8]; // enough for many small elements; nen<=8 typical; here nen=4
     #pragma unroll
     for (int a = 0; a < nen; ++a) {
@@ -65,26 +64,30 @@ void assembleCSR_atomic_kernel(
     for (int a = 0; a < nen; ++a) {
         for (int da = 0; da < ndof_per_node; ++da) {
             int I = a * ndof_per_node + da;
-            int r_dof = global_dof(gnode[a], da, ndof_per_node);
+            int old_r_dof = global_dof(gnode[a], da, ndof_per_node);
+            int row       = dofOld2New[old_r_dof];  // permuted row index
 
             for (int b = 0; b < nen; ++b) {
                 for (int db = 0; db < ndof_per_node; ++db) {
                     int J = b * ndof_per_node + db;
-                    int c_dof = global_dof(gnode[b], db, ndof_per_node);
+                    int old_c_dof = global_dof(gnode[b], db, ndof_per_node);
+                    int col       = dofOld2New[old_c_dof]; // permuted col index
 
-                    int row = r_dof;
-                    int col = c_dof;
                     double val = elemKe[KeBase + I * ndofe + J];
 
-                    // If CSR stores only upper triangle, redirect (row>col) to (col,row)
-                    if (symmetric_upper && row > col) {
-                        // Since Ke is symmetric for linear elasticity, we can just add to the mirrored slot
-                        int tmp = row; row = col; col = tmp;
+                    int r = row;
+                    int c = col;
+
+                    // If CSR stores only upper triangle, redirect (r>c) to (c,r)
+                    if (symmetric_upper && r > c) {
+                        int tmp = r;
+                        r = c;
+                        c = tmp;
                         // val remains the same (Ke[I,J] == Ke[J,I] ideally)
                     }
 
                     // Find position in CSR
-                    int pos = csr_find_pos(rowPtr, colIdx, row, col);
+                    int pos = csr_find_pos(rowPtr, colIdx, r, c);
                     if (pos >= 0) {
                         atomicAdd(&values[pos], val);
                     }
@@ -98,19 +101,21 @@ void assembleCSR_atomic_kernel(
 void launch_assembleCSR_atomic(
     const double* d_elemKe,     // device
     const int*    d_elem_conn,  // device
-    const int*    d_rowPtr,     // device
-    const int*    d_colIdx,     // device
+    const int*    d_rowPtr,     // device (permuted pattern)
+    const int*    d_colIdx,     // device (permuted pattern)
     double*       d_values,     // device (zeroed before call)
+    const int*    d_dofOld2New, // device map old_dof -> new_dof
     int nElem,
     int nen,                    // e.g., 4
     int ndof_per_node,          // e.g., 3
     bool symmetric_upper,
-    cudaStream_t stream = 0)
+    cudaStream_t stream)
 {
     int block = 128;
     int grid  = (nElem + block - 1) / block;
     assembleCSR_atomic_kernel<<<grid, block, 0, stream>>>(
         d_elemKe, d_elem_conn,
         d_rowPtr, d_colIdx, d_values,
+        d_dofOld2New,
         nElem, nen, ndof_per_node, symmetric_upper);
 }

@@ -12,7 +12,7 @@
 #include <sys/types.h>
 #include <ctime>
 #include <cuda_runtime.h>
-#include <cmath>    // for std::abs
+#include <cmath>
 
 #include "CPU/mesh_parser.h"
 #include "CPU/csr_builder.h"
@@ -24,16 +24,23 @@
 
 // CUDA error check
 #define CUDA_CHECK(call) \
-    do { cudaError_t err = call; if (err != cudaSuccess) { \
-        std::cerr << "CUDA error: " << cudaGetErrorString(err) << std::endl; exit(1);} \
-    } while(0)
+    do { \
+        cudaError_t err__ = (call); \
+        if (err__ != cudaSuccess) { \
+            std::cerr << "CUDA error at " << __FILE__ << ":" << __LINE__ \
+                      << " : " << cudaGetErrorString(err__) << std::endl; \
+            std::exit(1); \
+        } \
+    } while (0)
 
 using Clock = std::chrono::high_resolution_clock;
 
 // Create directory if not exists
 static void makeDir(const std::string &p) {
     struct stat st = {0};
-    if (stat(p.c_str(), &st) == -1) mkdir(p.c_str(), 0755);
+    if (stat(p.c_str(), &st) == -1) {
+        mkdir(p.c_str(), 0755);
+    }
 }
 
 // Simple bandwidth metric: max |col - row|
@@ -43,7 +50,7 @@ static int compute_bandwidth(int n,
 {
     int bw = 0;
     for (int i = 0; i < n; ++i) {
-        for (int k = rowPtr[i]; k < rowPtr[i+1]; ++k) {
+        for (int k = rowPtr[i]; k < rowPtr[i + 1]; ++k) {
             int j = colIdx[k];
             int d = std::abs(j - i);
             if (d > bw) bw = d;
@@ -52,39 +59,40 @@ static int compute_bandwidth(int n,
     return bw;
 }
 
-// Convenience wrapper for your CSR reordering
-static void apply_permutation_to_csr(
-    int n,
-    const std::vector<int>& rowPtr,
-    const std::vector<int>& colIdx,
-    const std::vector<double>& vals,
-    const std::vector<int>& perm,      // perm[new] = old
-    std::vector<int>& outRow,
-    std::vector<int>& outCol,
-    std::vector<double>& outVal)
-{
-    reorderCSR(n, rowPtr, colIdx, vals, perm, outRow, outCol, outVal);
-}
-
-int main(int argc, char* argv[]) 
+int main(int argc, char* argv[])
 {
     // -------------------- Parse Args --------------------
     std::string meshFile = "CPU/bracket_3d.msh";
     std::string reorderMethodStr = "none";
-    std::string solverStr = "cg";   // cg or chol
+    std::string solverStr = "cg";
     bool verbose = false;
 
     int positional = 0;
     for (int i = 1; i < argc; i++) {
         std::string a = argv[i];
-        if (a == "-v" || a == "--verbose") verbose = true;
-        else if (a.rfind("--solver=",0) == 0) solverStr = a.substr(9);
-        else if (positional == 0) { meshFile = a; positional++; }
-        else if (positional == 1) { reorderMethodStr = a; positional++; }
+        if (a == "-v" || a == "--verbose") {
+            verbose = true;
+        } else if (a.rfind("--solver=", 0) == 0) {
+            solverStr = a.substr(9);
+        } else if (positional == 0) {
+            meshFile = a;
+            positional++;
+        } else if (positional == 1) {
+            reorderMethodStr = a;
+            positional++;
+        }
     }
 
     ReorderMethod reorderMethod = parseReorderMethod(reorderMethodStr);
     std::string methodTag = methodToString(reorderMethod);
+
+    std::string solverNorm = solverStr;
+    std::transform(solverNorm.begin(), solverNorm.end(), solverNorm.begin(),
+                   [](unsigned char c){ return std::tolower(c); });
+
+    bool use_direct = (solverNorm == "chol" ||
+                       solverNorm == "lu"   ||
+                       solverNorm == "direct");
 
     // Extract mesh base name
     std::string meshBase;
@@ -99,7 +107,7 @@ int main(int argc, char* argv[])
     makeDir("results");
     makeDir("results/" + methodTag);
 
-    // Timestamp for the result file only
+    // Timestamp for result filename
     auto tnow = std::chrono::system_clock::now();
     auto tnow_time = std::chrono::system_clock::to_time_t(tnow);
     std::tm ti;
@@ -113,7 +121,7 @@ int main(int argc, char* argv[])
 
     std::string resultFile =
         "results/" + methodTag + "/" +
-        meshBase + "__" + methodTag + "__" + solverStr + "__" + ts.str() + ".txt";
+        meshBase + "__" + methodTag + "__" + solverNorm + "__" + ts.str() + ".txt";
 
     // ---------------- Mesh Parsing ----------------
     std::vector<Node> nodes;
@@ -125,136 +133,145 @@ int main(int argc, char* argv[])
 
     // Filter Tet4
     std::vector<Element> tet4;
-    for (auto &e : elements)
+    tet4.reserve(elements.size());
+    for (auto &e : elements) {
         if (e.type == 4 && e.node_ids.size() == 4)
             tet4.push_back(e);
+    }
 
-    int nNodes = nodes.size();
-    int nElem  = tet4.size();
+    int nNodes = static_cast<int>(nodes.size());
+    int nElem  = static_cast<int>(tet4.size());
+    int ndof_per_node = 3;
 
-    // Build DOF map
+    if (verbose) {
+        std::cout << "Mesh: " << meshFile << "\n";
+        std::cout << "  Nodes: " << nNodes << "\n";
+        std::cout << "  Tet4 elements: " << nElem << "\n";
+    }
+
+    // Map GMSH node IDs to contiguous indices
     std::map<int,int> idToIdx;
-    for (int i = 0; i < nNodes; i++)
+    for (int i = 0; i < nNodes; i++) {
         idToIdx[nodes[i].id] = i;
+    }
 
+    // Coordinates
     std::vector<double> X(nNodes), Y(nNodes), Z(nNodes);
     for (auto &n : nodes) {
-        int i = idToIdx[n.id];
-        X[i] = n.x; Y[i] = n.y; Z[i] = n.z;
+        int idx = idToIdx[n.id];
+        X[idx] = n.x;
+        Y[idx] = n.y;
+        Z[idx] = n.z;
     }
 
+    // Connectivity (node indices)
     std::vector<int> conn(nElem * 4);
-    for (int e = 0; e < nElem; e++)
-        for (int i = 0; i < 4; i++)
-            conn[e*4+i] = idToIdx[tet4[e].node_ids[i]];
+    for (int e = 0; e < nElem; e++) {
+        for (int i = 0; i < 4; i++) {
+            conn[e * 4 + i] = idToIdx[tet4[e].node_ids[i]];
+        }
+    }
 
-    // ---------------- CSR Pattern ----------------
-    int ndof_per_node = 3;
+    // ---------------- Build CSR Pattern (original ordering) ----------------
     std::vector<int> rowPtr, colIdx;
     int nDOF = 0;
-    int nnz = buildCSRPattern(tet4, nodes, ndof_per_node, true, rowPtr, colIdx, nDOF);
 
-    // ---------------- GPU Memory ----------------
-    double *dX, *dY, *dZ;
-    int *dConn;
-    double *d_elemKe;
-    int *d_rowPtr, *d_colIdx;
-    double *d_vals;
+    int nnz = buildCSRPattern(
+        tet4, nodes, ndof_per_node,
+        /*symmetric_upper=*/false,
+        rowPtr, colIdx, nDOF);
 
-    CUDA_CHECK(cudaMalloc(&dX, nNodes*sizeof(double)));
-    CUDA_CHECK(cudaMalloc(&dY, nNodes*sizeof(double)));
-    CUDA_CHECK(cudaMalloc(&dZ, nNodes*sizeof(double)));
-    CUDA_CHECK(cudaMalloc(&dConn, nElem*4*sizeof(int)));
-    CUDA_CHECK(cudaMalloc(&d_elemKe, nElem*144*sizeof(double)));
-    CUDA_CHECK(cudaMalloc(&d_rowPtr, (nDOF+1)*sizeof(int)));
-    CUDA_CHECK(cudaMalloc(&d_colIdx, nnz*sizeof(int)));
-    CUDA_CHECK(cudaMalloc(&d_vals, nnz*sizeof(double)));
-
-    cudaMemcpy(dX, X.data(), nNodes*sizeof(double), cudaMemcpyHostToDevice);
-    cudaMemcpy(dY, Y.data(), nNodes*sizeof(double), cudaMemcpyHostToDevice);
-    cudaMemcpy(dZ, Z.data(), nNodes*sizeof(double), cudaMemcpyHostToDevice);
-    cudaMemcpy(dConn, conn.data(), nElem*4*sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_rowPtr, rowPtr.data(), (nDOF+1)*sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_colIdx, colIdx.data(), nnz*sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemset(d_vals, 0, nnz*sizeof(double));
-
-    // ---------------- GPU Local + Global Assembly ----------------
-    launchLocalKe_Tet4_3D(dX, dY, dZ, dConn, 200000, 0.3, d_elemKe, nElem);
-    cudaDeviceSynchronize();
-
-    launch_assembleCSR_atomic(d_elemKe, dConn, d_rowPtr, d_colIdx, d_vals,
-                              nElem, 4, ndof_per_node, true);
-    cudaDeviceSynchronize();
-
-    // Copy matrix values back for CPU-side work
-    std::vector<double> vals(nnz);
-    cudaMemcpy(vals.data(), d_vals, nnz*sizeof(double), cudaMemcpyDeviceToHost);
-
-    // ---------------- Bandwidth BEFORE reorder -------------------
     int bw_orig = compute_bandwidth(nDOF, rowPtr, colIdx);
 
-    // ---------------- Reordering (timed) -------------------------
+    // ---------------- Compute permutation ----------------
+    std::vector<int> perm(nDOF);
     double reorder_ms = 0.0;
+    auto tRe0 = Clock::now();
 
-    // perm_improve[new] = old
-    std::vector<int> perm_improve(nDOF);
-    std::iota(perm_improve.begin(), perm_improve.end(), 0);
+    perm = computePermutation(nDOF, rowPtr, colIdx, reorderMethod);
 
-    // final CSR to send to GPU
-    std::vector<int> rRow = rowPtr;
-    std::vector<int> rCol = colIdx;
-    std::vector<double> rVal = vals;
+    auto tRe1 = Clock::now();
+    reorder_ms = std::chrono::duration<double, std::milli>(tRe1 - tRe0).count();
 
-    if (reorderMethod != ReorderMethod::NONE) {
-        auto t0 = Clock::now();
+    // ---------------- Build permuted CSR pattern ----------------
+    std::vector<int> rRow, rCol;
+    std::vector<double> dummyVals(nnz, 0.0), dummyValsOut;
 
-        if (reorderMethod == ReorderMethod::AMD) {
-            // *** INTERPRET "amd" AS GEOMETRIC ORDERING ***
-            // Sort nodes by (z, y, x), then map DOFs accordingly.
-            struct NodeKey {
-                int    oldNode;
-                double x, y, z;
-            };
-            std::vector<NodeKey> keys(nNodes);
-            for (int i = 0; i < nNodes; ++i) {
-                keys[i] = { i, X[i], Y[i], Z[i] };
-            }
-            std::sort(keys.begin(), keys.end(),
-                      [](const NodeKey& a, const NodeKey& b){
-                          if (a.z != b.z) return a.z < b.z;
-                          if (a.y != b.y) return a.y < b.y;
-                          return a.x < b.x;
-                      });
+    reorderCSR(nDOF, rowPtr, colIdx, dummyVals,
+               perm, rRow, rCol, dummyValsOut);
 
-            perm_improve.assign(nDOF, -1);
-            int newNode = 0;
-            for (const auto& k : keys) {
-                int oldNode = k.oldNode;
-                for (int d = 0; d < ndof_per_node; ++d) {
-                    int newDof = newNode * ndof_per_node + d;
-                    int oldDof = oldNode * ndof_per_node + d;
-                    perm_improve[newDof] = oldDof;
-                }
-                ++newNode;
-            }
-        } else {
-            // RCM / COLAMD etc use the graph-based permutation
-            perm_improve = computePermutation(nDOF, rowPtr, colIdx, reorderMethod);
-        }
-
-        apply_permutation_to_csr(nDOF, rowPtr, colIdx, vals,
-                                 perm_improve, rRow, rCol, rVal);
-
-        auto t1 = Clock::now();
-        reorder_ms = std::chrono::duration<double,std::milli>(t1 - t0).count();
+    // Inverse permutation: old -> new
+    std::vector<int> dofOld2New(nDOF);
+    for (int newi = 0; newi < nDOF; ++newi) {
+        int oldi = perm[newi];
+        dofOld2New[oldi] = newi;
     }
 
-    // ---------------- Diagonal regularization (make SPD) --------
-    // Add a tiny lambda*I so Cholesky always factors fully and
-    // we can meaningfully compare factor times across permutations.
+    int bw_reord = compute_bandwidth(nDOF, rRow, rCol);
+    int nnz_perm = static_cast<int>(rCol.size());
+
+    if (verbose) {
+        std::cout << "Bandwidth orig:  " << bw_orig  << "\n";
+        std::cout << "Bandwidth reord: " << bw_reord << "\n";
+        std::cout << "nnz (orig):  " << nnz << "\n";
+        std::cout << "nnz (perm):  " << nnz_perm << "\n";
+    }
+
+    // ---------------- Allocate GPU Buffers ----------------
+    double *dX = nullptr, *dY = nullptr, *dZ = nullptr;
+    int *dConn = nullptr;
+    double *d_elemKe = nullptr;
+    int *d_rowPtr = nullptr, *d_colIdx_perm = nullptr;
+    double *d_vals = nullptr;
+    int *d_dofOld2New = nullptr;
+
+    CUDA_CHECK(cudaMalloc(&dX, nNodes * sizeof(double)));
+    CUDA_CHECK(cudaMalloc(&dY, nNodes * sizeof(double)));
+    CUDA_CHECK(cudaMalloc(&dZ, nNodes * sizeof(double)));
+    CUDA_CHECK(cudaMalloc(&dConn, nElem * 4 * sizeof(int)));
+    CUDA_CHECK(cudaMalloc(&d_elemKe, nElem * 144 * sizeof(double)));
+
+    CUDA_CHECK(cudaMalloc(&d_rowPtr, (nDOF + 1) * sizeof(int)));
+    CUDA_CHECK(cudaMalloc(&d_colIdx_perm, nnz_perm * sizeof(int)));
+    CUDA_CHECK(cudaMalloc(&d_vals, nnz_perm * sizeof(double)));
+    CUDA_CHECK(cudaMalloc(&d_dofOld2New, nDOF * sizeof(int)));
+
+    CUDA_CHECK(cudaMemcpy(dX, X.data(), nNodes * sizeof(double), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(dY, Y.data(), nNodes * sizeof(double), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(dZ, Z.data(), nNodes * sizeof(double), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(dConn, conn.data(), nElem * 4 * sizeof(int), cudaMemcpyHostToDevice));
+
+    CUDA_CHECK(cudaMemcpy(d_rowPtr, rRow.data(), (nDOF + 1) * sizeof(int), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_colIdx_perm, rCol.data(), nnz_perm * sizeof(int), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemset(d_vals, 0, nnz_perm * sizeof(double)));
+
+    CUDA_CHECK(cudaMemcpy(d_dofOld2New, dofOld2New.data(),
+                          nDOF * sizeof(int), cudaMemcpyHostToDevice));
+
+    // ---------------- GPU Local Ke ----------------
+    launchLocalKe_Tet4_3D(dX, dY, dZ, dConn,
+                          /*E*/200000.0, /*nu*/0.3,
+                          d_elemKe, nElem);
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    // ---------------- Global Assembly into permuted CSR ----------------
+    launch_assembleCSR_atomic(
+        d_elemKe, dConn,
+        d_rowPtr, d_colIdx_perm, d_vals,
+        d_dofOld2New,
+        nElem, 4, ndof_per_node,
+        /*symmetric_upper=*/false);
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    // ---------------- Regularization (host-side) ----------------
+    std::vector<double> rVal(nnz_perm);
+    CUDA_CHECK(cudaMemcpy(rVal.data(), d_vals,
+                          nnz_perm * sizeof(double),
+                          cudaMemcpyDeviceToHost));
+
     const double lambda = 1e-6;
     for (int i = 0; i < nDOF; ++i) {
-        for (int k = rRow[i]; k < rRow[i+1]; ++k) {
+        for (int k = rRow[i]; k < rRow[i + 1]; ++k) {
             if (rCol[k] == i) {
                 rVal[k] += lambda;
                 break;
@@ -262,86 +279,113 @@ int main(int argc, char* argv[])
         }
     }
 
-    // Bandwidth AFTER reorder (and regularization)
-    int bw_reord = compute_bandwidth(nDOF, rRow, rCol);
-
-    // Upload (possibly reordered) CSR to GPU
-    cudaMemcpy(d_rowPtr, rRow.data(), (nDOF+1)*sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_colIdx, rCol.data(), nnz*sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_vals,  rVal.data(),  nnz*sizeof(double), cudaMemcpyHostToDevice);
+    CUDA_CHECK(cudaMemcpy(d_vals, rVal.data(),
+                          nnz_perm * sizeof(double),
+                          cudaMemcpyHostToDevice));
 
     // ---------------- RHS ----------------
     std::vector<double> b(nDOF, 1.0);
-
-    // overall permutation from original numbering -> final CSR numbering
-    std::vector<int> perm_total(nDOF);
-    perm_total = perm_improve; // no extra permutations elsewhere
-
-    // b_perm[new] = b[old]
     std::vector<double> b_perm(nDOF);
-    for (int i = 0; i < nDOF; i++)
-        b_perm[i] = b[ perm_total[i] ];
+    for (int newi = 0; newi < nDOF; ++newi) {
+        b_perm[newi] = b[perm[newi]];
+    }
 
-    double *d_b, *d_x;
-    cudaMalloc(&d_b, nDOF*sizeof(double));
-    cudaMalloc(&d_x, nDOF*sizeof(double));
-    cudaMemcpy(d_b, b_perm.data(), nDOF*sizeof(double), cudaMemcpyHostToDevice);
-    cudaMemset(d_x, 0, nDOF*sizeof(double));
+    double *d_b = nullptr, *d_x = nullptr;
+    CUDA_CHECK(cudaMalloc(&d_b, nDOF * sizeof(double)));
+    CUDA_CHECK(cudaMalloc(&d_x, nDOF * sizeof(double)));
 
-    // ---------------- SOLVER SELECT ----------------
-    int cg_iters = 0;
-    int singularity = -1;
-    double chol_ms = 0.0;
+    CUDA_CHECK(cudaMemcpy(d_b, b_perm.data(),
+                          nDOF * sizeof(double),
+                          cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemset(d_x, 0, nDOF * sizeof(double)));
+
+    // ---------------- Free assembly-only buffers before direct solve ----------------
+    CUDA_CHECK(cudaFree(dX));
+    CUDA_CHECK(cudaFree(dY));
+    CUDA_CHECK(cudaFree(dZ));
+    CUDA_CHECK(cudaFree(dConn));
+    CUDA_CHECK(cudaFree(d_elemKe));
+    CUDA_CHECK(cudaFree(d_dofOld2New));
+    dX = dY = dZ = nullptr;
+    dConn = nullptr;
+    d_elemKe = nullptr;
+    d_dofOld2New = nullptr;
+
+    // ---------------- SOLVE ----------------
+    int cg_iters    = 0;   // for CG
+    int singularity = -1;  // for Cholesky
+    double chol_ms  = 0.0;
     double solve_ms = 0.0;
 
     auto tSolve0 = Clock::now();
 
-    if (solverStr == "chol") {
+    if (use_direct) {
+        // Direct Cholesky (or LU) on GPU, using cuSOLVER.
         gpu_direct_cholesky(
-            nDOF, nnz,
-            d_rowPtr, d_colIdx, d_vals,
+            nDOF, nnz_perm,
+            d_rowPtr, d_colIdx_perm, d_vals,
             d_b, d_x,
             singularity, chol_ms
         );
-        cudaDeviceSynchronize();
-    }
-    else {
+        CUDA_CHECK(cudaDeviceSynchronize());
+    } else {
+        // Conjugate Gradient on GPU with cuSPARSE/cuBLAS
         solveCG_CSR_GPU(
-            nDOF, nnz,
-            d_rowPtr, d_colIdx, d_vals,
+            nDOF, nnz_perm,
+            d_rowPtr, d_colIdx_perm, d_vals,
             d_b, d_x,
-            5000, 1e-10,
+            /*maxIters=*/5000,
+            /*tol=*/1e-10,
             cg_iters
         );
-        cudaDeviceSynchronize();
+        CUDA_CHECK(cudaDeviceSynchronize());
     }
 
     auto tSolve1 = Clock::now();
-    solve_ms = std::chrono::duration<double,std::milli>(tSolve1 - tSolve0).count();
+    solve_ms = std::chrono::duration<double, std::milli>(tSolve1 - tSolve0).count();
+    
 
-    // ---------------- Save Timing ----------------
+    // ---------------- Un-permute solution ----------------
+    std::vector<double> x_perm(nDOF);
+    CUDA_CHECK(cudaMemcpy(x_perm.data(), d_x,
+                          nDOF * sizeof(double),
+                          cudaMemcpyDeviceToHost));
+
+    std::vector<double> x_orig(nDOF);
+    for (int newi = 0; newi < nDOF; ++newi) {
+        int oldi = perm[newi];
+        x_orig[oldi] = x_perm[newi];
+    }
+
+    // ---------------- Save results ----------------
     std::ofstream tf(resultFile);
     tf << "# FEM solve results\n";
     tf << "mesh " << meshFile << "\n";
     tf << "reorder " << methodTag << "\n";
-    tf << "solver  " << solverStr << "\n";
-
+    tf << "solver  " << solverNorm << "\n";
     tf << "Bandwidth_orig "  << bw_orig  << "\n";
     tf << "Bandwidth_reord " << bw_reord << "\n";
     tf << "Reorder_ms "      << reorder_ms << "\n";
 
-    if (solverStr == "cg") {
-        tf << "CG_iters " << cg_iters << "\n";
-        tf << "Solve_ms " << solve_ms << "\n";
-    } else {
+    if (use_direct) {
         tf << "Cholesky_singularity " << singularity << "\n";
-        tf << "Cholesky_factor_ms "  << chol_ms << "\n";
+        tf << "Cholesky_factor_ms "   << chol_ms << "\n";
+        tf << "Solve_ms "             << solve_ms << "\n";
+    } else {
+        tf << "CG_iters " << cg_iters << "\n";  // currently -1 (not tracked)
         tf << "Solve_ms " << solve_ms << "\n";
     }
 
     tf.close();
 
     std::cout << "Wrote: " << resultFile << "\n";
+
+    // Free remaining device buffers
+    CUDA_CHECK(cudaFree(d_rowPtr));
+    CUDA_CHECK(cudaFree(d_colIdx_perm));
+    CUDA_CHECK(cudaFree(d_vals));
+    CUDA_CHECK(cudaFree(d_b));
+    CUDA_CHECK(cudaFree(d_x));
 
     return 0;
 }

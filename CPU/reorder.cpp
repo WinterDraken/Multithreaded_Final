@@ -21,6 +21,7 @@ ReorderMethod parseReorderMethod(const std::string& sIn) {
     if (s == "none") return ReorderMethod::NONE;
     if (s == "rcm")  return ReorderMethod::RCM;
     if (s == "amd")  return ReorderMethod::AMD;
+    if (s == "colamd") return ReorderMethod::COLAMD;
 
     std::cerr << "Warning: unknown reordering method '" << sIn
               << "', defaulting to RCM.\n";
@@ -32,6 +33,7 @@ std::string methodToString(ReorderMethod m) {
         case ReorderMethod::NONE: return "none";
         case ReorderMethod::RCM:  return "rcm";
         case ReorderMethod::AMD:  return "amd";
+        case ReorderMethod::COLAMD: return "colamd";
         default:                  return "unknown";
     }
 }
@@ -174,6 +176,142 @@ std::vector<int> approximateAMD(
     return perm; // perm[new] = old
 }
 
+// --------------------- COLAMD (Column Approximate Minimum Degree) --------
+//
+// COLAMD is a column ordering algorithm designed to minimize fill-in
+// during sparse matrix factorization (e.g., Cholesky, LU).
+//
+// Key differences from AMD:
+//   - AMD works on the symmetric graph structure (rows/columns together)
+//   - COLAMD works specifically on the column structure
+//   - COLAMD is optimized for matrices that will be factorized
+//
+// Algorithm:
+//   1. Build column elimination graph: for each column, track which rows
+//      it appears in, and which other columns share those rows
+//   2. At each step, select the column with minimum degree (fewest row connections)
+//   3. When a column is eliminated, update degrees of columns that share rows
+//   4. This approximates the fill-in that would occur during factorization
+//
+// Returns perm[new] = old
+// -------------------------------------------------------------------------
+std::vector<int> columnApproximateMinimumDegree(
+    int n,
+    const std::vector<int>& row_ptr,
+    const std::vector<int>& col_ind)
+{
+    // Build column-to-row mapping: for each column j, which rows contain it?
+    // This is the transpose of the CSR structure
+    std::vector<std::vector<int>> col_to_rows(n);
+    
+    // Count number of rows (for symmetric matrices, this equals n, but we compute it)
+    int nrows = 0;
+    for (int i = 0; i < n; ++i) {
+        for (int k = row_ptr[i]; k < row_ptr[i + 1]; ++k) {
+            int j = col_ind[k];
+            if (j >= 0 && j < n) {
+                col_to_rows[j].push_back(i);
+                nrows = std::max(nrows, i + 1);
+            }
+        }
+    }
+    
+    // Remove duplicates and sort row lists for each column
+    for (int j = 0; j < n; ++j) {
+        auto& rows = col_to_rows[j];
+        std::sort(rows.begin(), rows.end());
+        rows.erase(std::unique(rows.begin(), rows.end()), rows.end());
+    }
+    
+    // Build column-to-column adjacency: two columns are adjacent if they
+    // share at least one row (this forms the column elimination graph)
+    std::vector<std::vector<int>> col_neighbors(n);
+    for (int j = 0; j < n; ++j) {
+        const auto& rows = col_to_rows[j];
+        std::vector<int> neighbors_set;
+        
+        // For each row that column j appears in, find all other columns in that row
+        for (int row : rows) {
+            if (row < nrows) {
+                for (int k = row_ptr[row]; k < row_ptr[row + 1]; ++k) {
+                    int other_col = col_ind[k];
+                    if (other_col != j && other_col >= 0 && other_col < n) {
+                        neighbors_set.push_back(other_col);
+                    }
+                }
+            }
+        }
+        
+        // Remove duplicates
+        std::sort(neighbors_set.begin(), neighbors_set.end());
+        neighbors_set.erase(std::unique(neighbors_set.begin(), neighbors_set.end()),
+                           neighbors_set.end());
+        col_neighbors[j] = neighbors_set;
+    }
+    
+    // Initialize degrees: degree[j] = number of columns that share rows with column j
+    std::vector<int> degree(n);
+    for (int j = 0; j < n; ++j) {
+        degree[j] = static_cast<int>(col_neighbors[j].size());
+    }
+    
+    // Active columns (not yet eliminated)
+    std::vector<char> active(n, 1);
+    std::vector<int> perm; perm.reserve(n); // perm[new] = old
+    
+    // COLAMD main loop: repeatedly eliminate column with minimum degree
+    for (int newIdx = 0; newIdx < n; ++newIdx) {
+        int best_col = -1;
+        int best_deg = INT_MAX;
+        
+        // Find active column with minimum degree
+        for (int j = 0; j < n; ++j) {
+            if (!active[j]) continue;
+            if (degree[j] < best_deg) {
+                best_deg = degree[j];
+                best_col = j;
+            }
+        }
+        
+        if (best_col == -1) {
+            // Fallback: add remaining active columns
+            for (int j = 0; j < n; ++j) {
+                if (active[j]) {
+                    perm.push_back(j);
+                    active[j] = 0;
+                }
+            }
+            break;
+        }
+        
+        // Eliminate column best_col
+        perm.push_back(best_col);
+        active[best_col] = 0;
+        
+        // Update degrees: when column best_col is eliminated, columns that share
+        // rows with it will have new connections (fill-in)
+        // Approximate: increase degree of all neighbors by the number of active neighbors
+        int active_neighbor_count = 0;
+        for (int neighbor : col_neighbors[best_col]) {
+            if (active[neighbor]) {
+                ++active_neighbor_count;
+            }
+        }
+        
+        // Update degrees of active neighbors
+        // The fill-in approximation: when best_col is eliminated, its neighbors
+        // become connected to each other (if they weren't already)
+        for (int neighbor : col_neighbors[best_col]) {
+            if (active[neighbor]) {
+                // Approximate fill-in: add connections to other neighbors
+                degree[neighbor] += std::max(0, active_neighbor_count - 1);
+            }
+        }
+    }
+    
+    return perm; // perm[new] = old
+}
+
 // --------------------- Dispatch -------------------------------
 std::vector<int> computePermutation(
     int n,
@@ -191,6 +329,8 @@ std::vector<int> computePermutation(
             return reverseCuthillMcKee(n, row_ptr, col_ind);
         case ReorderMethod::AMD:
             return approximateAMD(n, row_ptr, col_ind);
+        case ReorderMethod::COLAMD:
+            return columnApproximateMinimumDegree(n, row_ptr, col_ind);
         default: {
             std::vector<int> id(n);
             for (int i = 0; i < n; ++i) id[i] = i;

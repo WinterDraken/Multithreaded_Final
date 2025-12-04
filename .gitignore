@@ -1,15 +1,30 @@
-# Build artifacts (commented out - allowing binaries to be committed)
-# *.o
-# fem_assembly
-# *.so
-# *.a
+# Build artifacts
+*.o
+fem_assembly
+*.so
+*.a
 
 # General output files
-*.csv
+
 *.bin
 
-# Note: Compiled binaries (.o files, executables) and output files 
-# (global_matrix.txt, csr_arrays.txt) are intentionally tracked
+# Track .msh files everywhere
+!**/*.msh
+
+# Track only results.txt files in results directory (timestamped folders)
+# Results are in results/TIMESTAMP/method/mesh__method_results.txt
+results/**
+!results/**/
+!results/**/*results.txt
+
+# Ignore solution vectors and global matrices (unless verbose)
+results/**/*solution_vector*.txt
+results/**/*global_matrix*.txt
+
+# Benchmarking folder - track CSV files but ignore everything else
+benchmarking/**
+!benchmarking/**/
+!benchmarking/**/*.csv
 
 # IDE files
 .vscode/
@@ -21,4 +36,3 @@
 # OS files
 .DS_Store
 Thumbs.db
-
